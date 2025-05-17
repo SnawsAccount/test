@@ -247,20 +247,26 @@ while getgenv().AutoDrop and bank() > 0 do
 	local atm = closest(filter(ATMs, isAtmWorking))
 	if not atm then
 		notify("atm nil")
+		getgenv().AutoDrop = false
 		break
+	else
+		moveTo(atm)
 	end
-	moveTo(atm)
 
-	while not isAtmWorking(atm) do
+	while getgenv().AutoDrop and not isAtmWorking(atm) do
 		notify("ATM is not working")
 		atm = closest(filter(ATMs, isAtmWorking))
 		if not atm then
 			notify("atm nil (while loop)")
+			getgenv().AutoDrop = false
 			break
+		else
+			moveTo(atm)
 		end
-		moveTo(atm)
 		task.wait()
 	end
+
+	if not atm then break end
 
 	notify("Withdrawing")
 	withdraw()
