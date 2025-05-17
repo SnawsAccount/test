@@ -246,7 +246,7 @@ while getgenv().AutoDrop and bank() > 0 do
 	notify("Moving to ATM")
 	local atm = closest(filter(ATMs, isAtmWorking))
 	if not atm then
-		notify("No working ATM found", 5)
+		notify("atm nil")
 		break
 	end
 	moveTo(atm)
@@ -255,7 +255,7 @@ while getgenv().AutoDrop and bank() > 0 do
 		notify("ATM is not working")
 		atm = closest(filter(ATMs, isAtmWorking))
 		if not atm then
-			notify("No working ATM found", 5)
+			notify("atm nil (while loop)")
 			break
 		end
 		moveTo(atm)
