@@ -44,6 +44,7 @@ local ATMActionPageOptions = Gui:FindFirstChild("ATMActionAmount", true).Parent
 local ATMGui = ATMActionPageOptions.Parent.Parent
 local ATMWithdrawButton = ATMGui:FindFirstChild("ATMWithdrawButton", true) :: TextButton
 local ATMMainPageOptions = ATMWithdrawButton.Parent
+
 local ATMAmount = ATMActionPageOptions:FindFirstChild("Frame"):FindFirstChildOfClass("TextBox") :: TextBox
 
 local ATMConfirmButton
@@ -254,10 +255,12 @@ while getgenv().AutoDrop and bank() > 0 do
 	withdraw()
 
 	notify("Moving to player")
+
 	local targetHRP = targetPlayer:FindFirstChild("HumanoidRootPart")
 	if targetHRP and (targetHRP.Position - HRP().Position).Magnitude > 3000 then
 		for _, sign in pairs(StreetSigns) do
 			local position = sign:GetPivot().Position
+
 			local distance1 = (position - HRP().Position).Magnitude
 			local distance2 = (position - targetHRP.Position).Magnitude
 			if distance1 < 3000 and distance2 < 3000 then
@@ -270,7 +273,7 @@ while getgenv().AutoDrop and bank() > 0 do
 	if targetHRP then
 		moveTo(targetHRP)
 	else
-		notify("Target player's HumanoidRootPart not found", 5)
+		notify("Target player's HumanoidRootPart not found")
 	end
 
 	while getgenv().AutoDrop and not isCombatLogging() do
