@@ -49,7 +49,7 @@ local ATMAmount = ATMActionPageOptions:FindFirstChild("Frame"):FindFirstChildOfC
 
 local ATMConfirmButton
 for _, v in pairs(ATMActionPageOptions:GetChildren()) do
-	if v:IsA("TextButton") and v.ZIndex == 1 then
+	if v and typeof(v) == "Instance" and v:IsA("TextButton") and v.ZIndex == 1 then
 		ATMConfirmButton = v
 	end
 end
