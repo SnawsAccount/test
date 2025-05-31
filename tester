@@ -1,18 +1,7 @@
-local Players = game:GetService("Players")
-local PathfindingService = game:GetService("PathfindingService")
-local VIM = Instance.new("VirtualInputManager")
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
 
--- Wait for LocalPlayer
-while not Players.LocalPlayer do task.wait() end
-local Player = Players.LocalPlayer
-
--- Wait for PlayerGui
-while not Player:FindFirstChild("PlayerGui") do task.wait() end
-local Gui = Player.PlayerGui :: PlayerGui
-
-local targetPlayerUsername = getgenv().TargetPlayer
-
---- Utility Functions ---
 function filter<T>(arr: { T }, func: (T) -> boolean): { T }
 	local new_arr = {}
 	for _, v in pairs(arr) do
@@ -23,7 +12,22 @@ function filter<T>(arr: { T }, func: (T) -> boolean): { T }
 	return new_arr
 end
 
---- World Setup ---
+function map<T, U>(arr: { T }, func: (T) -> U): { U }
+	local new_arr = {}
+	for i, v in pairs(arr) do
+		new_arr[i] = func(v)
+	end
+	return new_arr
+end
+
+--- Constants ---
+local Players = game:GetService("Players")
+local VIM = Instance.new("VirtualInputManager")
+local PathfindingService = game:GetService("PathfindingService")
+local TeleportService = game:GetService("TeleportService")
+
+local Player = Players.LocalPlayer
+local Gui = Player.PlayerGui :: PlayerGui
 local Map = workspace:WaitForChild("Map") :: Folder
 local StreetSigns = Map.RoadNetwork.StreetSigns:GetChildren() :: { Model }
 local Props = Map:WaitForChild("Props") :: Folder
@@ -31,12 +35,58 @@ local ATMs = filter(Props:GetChildren(), function(v)
 	return v.Name == "ATM"
 end) :: { Model }
 
---- ATM UI References ---
+local ATMPositions = {
+	Vector3.new(1000.2333374023438, 255.30435180664063, -634.9163208007813),
+	Vector3.new(839.2535400390625, 255.30136108398438, -164.10479736328126),
+	Vector3.new(1218.8096923828126, 255.2530059814453, -557.3890991210938),
+	Vector3.new(453.50701904296877, 255.85299682617188, 39.35797882080078),
+	Vector3.new(178.30911254882813, 255.4029998779297, -242.9920196533203),
+	Vector3.new(98.92961883544922, 255.30299377441407, -577.2241821289063),
+	Vector3.new(109.73040771484375, 255.2530059814453, 464.5361328125),
+	Vector3.new(-155.82275390625, 255.1853485107422, 442.9078674316406),
+	Vector3.new(-131.2180633544922, 255.21044921875, 106.91988372802735),
+	Vector3.new(-224.43162536621095, 255.2530059814453, 491.16094970703127),
+	Vector3.new(-197.49301147460938, 255.4029998779297, -245.9920196533203),
+	Vector3.new(-507.5982666015625, 256.559814453125, 182.9342498779297),
+	Vector3.new(-201.13021850585938, 255.35302734375, -573.53125),
+	Vector3.new(-598.0117797851563, 258.1029968261719, -165.30462646484376),
+}
+
+if Player.DisplayName == getgenv().TargetPlayer then
+	return
+end
+
+local poses = {}
+for i, atm in ATMs do
+	print(atm:GetPivot().Position)
+	local pos = atm:GetPivot().Position
+	table.insert(poses, { pos.X, pos.Y, pos.Z })
+end
+
+setclipboard(game:GetService("HttpService"):JSONEncode(poses))
+
+local RespawnButton = Gui.DeathScreen.DeathScreenHolder.Frame.RespawnButtonFrame.RespawnButton :: TextButton
+
+-- game:GetService("Workspace").Map.Props.ATM.Part.ProximityPrompt
+
+-- Numbers change
+--[[
+local ATMActionPageOptions = Gui["9875"]["8791"]["2203"].Options
+local ATMGui = Gui["9875"]["8791"]
+
+local ATMCloseButton = Gui["9875"]["8791"].ATMCloseButton :: ImageButton
+local ATMWithdrawButton = Gui["9875"]["8791"]["7882"].Options.ATMWithdrawButton :: TextButton
+local ATMAmount = Gui["9875"]["8791"]["2203"].Options.Frame["9053"] :: TextBox
+local ATMConfirmButton = Gui["9875"]["8791"]["2203"].Options["2180"] :: TextButton
+]]
+
 local ATMActionPageOptions = Gui:FindFirstChild("ATMActionAmount", true).Parent
 local ATMGui = ATMActionPageOptions.Parent.Parent
 local ATMWithdrawButton = ATMGui:FindFirstChild("ATMWithdrawButton", true) :: TextButton
 local ATMMainPageOptions = ATMWithdrawButton.Parent
+
 local ATMAmount = ATMActionPageOptions:FindFirstChild("Frame"):FindFirstChildOfClass("TextBox") :: TextBox
+
 local ATMConfirmButton
 for _, v in pairs(ATMActionPageOptions:GetChildren()) do
 	if v:IsA("TextButton") and v.ZIndex == 1 then
@@ -46,6 +96,7 @@ end
 
 --- Functions ---
 local function notify(text: string, duration: number?)
+	print(text)
 	game:GetService("StarterGui"):SetCore("SendNotification", {
 		Title = "AutoDrop",
 		Text = text,
@@ -53,41 +104,59 @@ local function notify(text: string, duration: number?)
 	})
 end
 
+local function rejoin()
+	TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
+end
+
 local function keypress(key: Enum.KeyCode)
 	VIM:SendKeyEvent(true, key, false, game)
 	task.wait()
 	VIM:SendKeyEvent(false, key, false, game)
+	task.wait()
+end
+
+local function clickOnUi(element: TextButton)
+	game:GetService("GuiService").SelectedObject = element
+	task.wait()
+	keypress(Enum.KeyCode.Return)
+	task.wait()
+	game:GetService("GuiService").SelectedObject = nil
+	task.wait()
 end
 
 local function clickOnOffscreenUi(element: TextButton)
-	pcall(function() firesignal(element.MouseButton1Click) end)
+	task.spawn(function()
+		firesignal(element.MouseButton1Click, 0, 0)
+	end)
 	task.wait()
 end
 
 local function isCombatLogging()
-	return Gui:FindFirstChild("Hotbar", true)?.HotbarHolder?.List?.HotbarCombatLogging?.Visible
+	return Gui.Hotbar.HotbarHolder.List.HotbarCombatLogging.Visible
 end
 
 local function Character()
 	return Player.Character or Player.CharacterAdded:Wait()
 end
 
-local function HRP()
-	return Character():WaitForChild("HumanoidRootPart") :: Part
-end
-
 local function Humanoid()
 	return Character():WaitForChild("Humanoid") :: Humanoid
 end
 
-local function closest(parts: { BasePart | Model }): BasePart?
-	local closest, minDist = nil, math.huge
+local function HRP()
+	return Character():WaitForChild("HumanoidRootPart") :: Part
+end
+
+local function closest(parts: { BasePart | Model }): BasePart
+	local closest = nil
+	local closest_distance = math.huge
 	for _, part in pairs(parts) do
 		local position = part:IsA("BasePart") and part.Position or part:GetPivot().Position
+
 		local distance = (position - HRP().Position).magnitude
-		if distance < minDist then
+		if distance < closest_distance then
 			closest = part
-			minDist = distance
+			closest_distance = distance
 		end
 	end
 	return closest
@@ -98,44 +167,121 @@ local function isAtmWorking(atm: Model)
 	return screen and not screen.Enabled
 end
 
-local function withdraw()
+local function withdraw(amount: number?)
 	clickOnOffscreenUi(ATMWithdrawButton)
-	ATMAmount.Text = 999999999
+	ATMAmount.Text = amount or 999999999
 	clickOnOffscreenUi(ATMConfirmButton)
 end
 
-local function moveTo(targetPart: BasePart | Model)
-	if not targetPart then
-		notify("moveTo: targetPart is nil", 5)
-		return
-	end
+local function moveTo(target: BasePart | Model | Vector3 | CFrame)
+	--[[ local function followPath(destination)
+		-- Compute the path
+		local success, errorMessage = pcall(function()
+			path:ComputeAsync(HRP().Position, destination)
+		end)
 
-	for _, p in pairs(workspace:GetChildren()) do
-		if p:IsA("Part") and p.Name == "Waypoint" then p:Destroy() end
-	end
+		if success and path.Status == Enum.PathStatus.Success then
+			-- Get the path waypoints
+			waypoints = path:GetWaypoints()
 
-	local position = targetPart:IsA("BasePart") and targetPart.Position or targetPart:GetPivot().Position
-	local path = PathfindingService:CreatePath({ AgentCanJump = false, WaypointSpacing = 0.5 })
+			-- Detect if path becomes blocked
+			blockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
+				-- Check if the obstacle is further down the path
+				if blockedWaypointIndex >= nextWaypointIndex then
+					-- Stop detecting path blockage until path is re-computed
+					blockedConnection:Disconnect()
+					-- Call function to re-compute new path
+					followPath(destination)
+				end
+			end)
 
-	local nocollide = {}
-	for _, v in pairs(targetPart:GetChildren()) do
-		if v:IsA("BasePart") and v.CanCollide then
-			table.insert(nocollide, v)
-			v.CanCollide = false
+			-- Detect when movement to next waypoint is complete
+			if not reachedConnection then
+				reachedConnection = Humanoid().MoveToFinished:Connect(function(reached)
+					if reached and nextWaypointIndex < #waypoints then
+						-- Increase waypoint index and move to next waypoint
+						nextWaypointIndex += 1
+						Humanoid():MoveTo(waypoints[nextWaypointIndex].Position)
+					else
+						if reached and nextWaypointIndex >= #waypoints then
+							-- Path is completed
+							pathCompleted = true
+						end
+						reachedConnection:Disconnect()
+						blockedConnection:Disconnect()
+					end
+				end)
+			end
+
+			-- Initially move to second waypoint (first waypoint is path start; skip it)
+			nextWaypointIndex = 2
+			Humanoid():MoveTo(waypoints[nextWaypointIndex].Position)
+		else
+			notify("Path not computed! " .. (errorMessage or ""))
+			pathCompleted = true -- Mark as completed even on error
 		end
 	end
 
-	local ok, err = pcall(function() path:ComputeAsync(HRP().Position, position) end)
-	for _, v in pairs(nocollide) do v.CanCollide = true end
+	followPath(position) ]]
 
-	if not ok or path.Status ~= Enum.PathStatus.Success then
-		notify("Path failed: " .. (err or "Unknown"), 5)
-		return
+	for _, part in pairs(workspace:GetChildren()) do
+		if part:IsA("Part") and (part.Name == "Waypoint") then
+			part:Destroy()
+		end
 	end
 
-	for _, waypoint in path:GetWaypoints() do
-		Humanoid():MoveTo(waypoint.Position)
-		Humanoid().MoveToFinished:Wait()
+    local epsilon = 7
+    local position
+    local temp = {}
+
+    if typeof(target) == "Vector3" then
+        position = target
+    elseif typeof(target) == "CFrame" then
+        position = target.Position
+    elseif target then
+        position = target:IsA("BasePart") and target.Position or target:GetPivot().Position
+
+        for _, v in pairs((target :: BasePart | Model):GetChildren()) do
+            if v:IsA("BasePart") and v.CanCollide then
+                table.insert(temp, v)
+                v.CanCollide = false
+            end
+        end
+    end
+
+	local path = PathfindingService:CreatePath({ AgentCanJump = false, AgentCanClimb = true, WaypointSpacing = 0.5 })
+
+	local success, errorMessage = pcall(function()
+		path:ComputeAsync(HRP().Position, position)
+	end)
+
+	for _, v in pairs(temp) do
+		v.CanCollide = true
+	end
+
+	if success and path.Status == Enum.PathStatus.Success then
+		for _, waypoint in ipairs(path:GetWaypoints()) do
+			local p = Instance.new("Part", workspace)
+			p.Position = waypoint.Position
+			p.Name = "Waypoint"
+			p.Anchored = true
+			p.CanCollide = false
+			p.Color = Color3.new(1, 0, 0)
+			p.Size = Vector3.new(0.2, 0.2, 0.2)
+		end
+		for _, waypoint in ipairs(path:GetWaypoints()) do
+			if (position - HRP().Position).magnitude <= epsilon then
+				break
+			end
+			VIM:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+			Humanoid():MoveTo(waypoint.Position)
+			Humanoid().MoveToFinished:Wait()
+		end
+		VIM:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+	else
+		notify("Path not computed " .. (errorMessage or "") .. tostring(path.Status))
+		rejoin()
+		error("Path not computed " .. (errorMessage or "") .. tostring(path.Status))
 	end
 end
 
@@ -145,7 +291,7 @@ local function bank()
 			return tonumber(v.Text:sub(16))
 		end
 	end
-	error("Can't find bank label")
+	error("Couldn't get money")
 end
 
 local function resetCharacter()
@@ -155,109 +301,81 @@ local function resetCharacter()
 	task.wait(0.1)
 	keypress(Enum.KeyCode.Return)
 	task.wait(1)
-	game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
+	rejoin()
+	--[[ task.wait(6.5)
+	clickOnUi(RespawnButton)
+	task.wait(1) ]]
 end
 
---- Pre-check ---
-if Player.Name == targetPlayerUsername then
-	getgenv().AutoDrop = false
-	return
-end
-
+--- Setup ---
+-- Wait for loading screen
+print("Waiting for loading screen")
 while Gui:FindFirstChild("LoadingScreen", true) do
-	notify("Waiting for loading screen")
 	task.wait()
 end
 
+-- Enter game
+print("Entering game")
 if Gui:FindFirstChild("SplashScreenGui") then
-	clickOnOffscreenUi(Gui.SplashScreenGui.Frame.PlayButton)
+	clickOnUi(Gui.SplashScreenGui.Frame.PlayButton)
 	task.wait(3)
 end
-
-if Gui:FindFirstChild("CharacterCreator", true)?.Enabled then
-	clickOnOffscreenUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
+-- Cannot use clickOnUi because idk roblox doesn't like it
+print("Skipping character creator")
+if Gui.CharacterCreator.Enabled then
+	clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
 	task.wait(5)
 end
 
+-- Disable door collision
+print("Disabling door collision")
 for _, v in pairs(workspace:GetDescendants()) do
-	if v:IsA("BasePart") and v.Name == "DoorBase" then
-		v.CanCollide = false
-	end
-end
-
-local targetPlayer
-for _, p in pairs(Players:GetPlayers()) do
-	if p.DisplayName == targetPlayerUsername then
-		targetPlayer = p.Character or p.CharacterAdded:Wait()
-	end
-end
-
-if not targetPlayer then
-	notify("Target player not found")
-	getgenv().AutoDrop = false
-	return
-end
-
---- Main Loop ---
-while getgenv().AutoDrop and bank() > 0 do
-	notify("Looking for ATM")
-	local atm = closest(filter(ATMs, isAtmWorking))
-	if not atm then
-		notify("No working ATM found")
-		break
-	else
-		moveTo(atm)
-	end
-
-	while getgenv().AutoDrop and not isAtmWorking(atm) do
-		notify("ATM inactive, retrying")
-		atm = closest(filter(ATMs, isAtmWorking))
-		if not atm then
-			notify("No ATM during retry")
-			break
-		else
-			moveTo(atm)
-		end
-		task.wait()
-	end
-
-	if not atm then break end
-
-	notify("Withdrawing funds")
-	withdraw()
-	withdraw()
-	withdraw()
-
-	local targetHRP = targetPlayer:FindFirstChild("HumanoidRootPart")
-	if targetHRP and (targetHRP.Position - HRP().Position).Magnitude > 3000 then
-		for _, sign in pairs(StreetSigns) do
-			local pos = sign:GetPivot().Position
-			if (pos - HRP().Position).Magnitude < 3000 and (pos - targetHRP.Position).Magnitude < 3000 then
-				moveTo(sign)
+	if v:IsA("Model") and v.Name == "DoorSystem" then
+		for _, v in pairs(v:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.CanCollide = false
 			end
 		end
 	end
-
-	if targetHRP then
-		moveTo(targetHRP)
-	else
-		notify("Target HRP missing", 5)
-		break
-	end
-
-	while getgenv().AutoDrop and not isCombatLogging() do
-		task.wait()
-	end
-
-	if getgenv().ResetCharacter then
-		resetCharacter()
-	else
-		while not Gui:FindFirstChild("DeathScreen", true)?.DeathScreenHolder?.Visible do
-			task.wait()
-		end
-		task.wait(1)
-		game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
-	end
 end
 
-getgenv().AutoDrop = false
+--- Main Loop ---
+if bank() > getgenv().KeepAmount then
+	notify("Moving to ATM")
+	local atm = closest(filter(ATMs, isAtmWorking))
+	print("atm", atm)
+	moveTo(atm)
+	while not isAtmWorking(atm) do
+		notify("ATM is not working")
+		atm = closest(filter(ATMs, isAtmWorking))
+		print("atm", atm)
+		moveTo(atm)
+		task.wait()
+	end
+	notify("Withdrawing 1")
+	withdraw(bank() - getgenv().KeepAmount )
+	task.wait(0.1)
+	notify("Withdrawing 2")
+	withdraw(bank() - getgenv().KeepAmount )
+	task.wait(0.1)
+	notify("Withdrawing 3")
+	withdraw(bank() - getgenv().KeepAmount )
+	task.wait(0.1)
+end
+notify("Moving to target location")
+moveTo(getgenv().TargetLocation)
+
+-- Wait until combat logging
+while not isCombatLogging() do
+	task.wait()
+end
+
+if getgenv().ResetCharacter then
+	resetCharacter()
+else
+	while not Gui.DeathScreen.DeathScreenHolder.Visible do
+		task.wait()
+	end
+	task.wait(1)
+	rejoin()
+end
