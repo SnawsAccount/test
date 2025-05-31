@@ -1,7 +1,9 @@
+-- Wait for game to fully load
 if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
 
+-- Utility functions
 function filter<T>(arr: { T }, func: (T) -> boolean): { T }
 	local new_arr = {}
 	for _, v in pairs(arr) do
@@ -20,7 +22,7 @@ function map<T, U>(arr: { T }, func: (T) -> U): { U }
 	return new_arr
 end
 
---- Constants ---
+-- Constants
 local Players = game:GetService("Players")
 local VIM = Instance.new("VirtualInputManager")
 local PathfindingService = game:GetService("PathfindingService")
@@ -29,64 +31,17 @@ local TeleportService = game:GetService("TeleportService")
 local Player = Players.LocalPlayer
 local Gui = Player.PlayerGui :: PlayerGui
 local Map = workspace:WaitForChild("Map") :: Folder
-local StreetSigns = Map.RoadNetwork.StreetSigns:GetChildren() :: { Model }
 local Props = Map:WaitForChild("Props") :: Folder
 local ATMs = filter(Props:GetChildren(), function(v)
 	return v.Name == "ATM"
 end) :: { Model }
 
-local ATMPositions = {
-	Vector3.new(1000.2333374023438, 255.30435180664063, -634.9163208007813),
-	Vector3.new(839.2535400390625, 255.30136108398438, -164.10479736328126),
-	Vector3.new(1218.8096923828126, 255.2530059814453, -557.3890991210938),
-	Vector3.new(453.50701904296877, 255.85299682617188, 39.35797882080078),
-	Vector3.new(178.30911254882813, 255.4029998779297, -242.9920196533203),
-	Vector3.new(98.92961883544922, 255.30299377441407, -577.2241821289063),
-	Vector3.new(109.73040771484375, 255.2530059814453, 464.5361328125),
-	Vector3.new(-155.82275390625, 255.1853485107422, 442.9078674316406),
-	Vector3.new(-131.2180633544922, 255.21044921875, 106.91988372802735),
-	Vector3.new(-224.43162536621095, 255.2530059814453, 491.16094970703127),
-	Vector3.new(-197.49301147460938, 255.4029998779297, -245.9920196533203),
-	Vector3.new(-507.5982666015625, 256.559814453125, 182.9342498779297),
-	Vector3.new(-201.13021850585938, 255.35302734375, -573.53125),
-	Vector3.new(-598.0117797851563, 258.1029968261719, -165.30462646484376),
-}
-
-if Player.DisplayName == getgenv().TargetPlayer then
-	return
-end
-
-local poses = {}
-for i, atm in ATMs do
-	print(atm:GetPivot().Position)
-	local pos = atm:GetPivot().Position
-	table.insert(poses, { pos.X, pos.Y, pos.Z })
-end
-
-setclipboard(game:GetService("HttpService"):JSONEncode(poses))
-
-local RespawnButton = Gui.DeathScreen.DeathScreenHolder.Frame.RespawnButtonFrame.RespawnButton :: TextButton
-
--- game:GetService("Workspace").Map.Props.ATM.Part.ProximityPrompt
-
--- Numbers change
---[[
-local ATMActionPageOptions = Gui["9875"]["8791"]["2203"].Options
-local ATMGui = Gui["9875"]["8791"]
-
-local ATMCloseButton = Gui["9875"]["8791"].ATMCloseButton :: ImageButton
-local ATMWithdrawButton = Gui["9875"]["8791"]["7882"].Options.ATMWithdrawButton :: TextButton
-local ATMAmount = Gui["9875"]["8791"]["2203"].Options.Frame["9053"] :: TextBox
-local ATMConfirmButton = Gui["9875"]["8791"]["2203"].Options["2180"] :: TextButton
-]]
-
+-- ATM UI elements
 local ATMActionPageOptions = Gui:FindFirstChild("ATMActionAmount", true).Parent
 local ATMGui = ATMActionPageOptions.Parent.Parent
 local ATMWithdrawButton = ATMGui:FindFirstChild("ATMWithdrawButton", true) :: TextButton
 local ATMMainPageOptions = ATMWithdrawButton.Parent
-
 local ATMAmount = ATMActionPageOptions:FindFirstChild("Frame"):FindFirstChildOfClass("TextBox") :: TextBox
-
 local ATMConfirmButton
 for _, v in pairs(ATMActionPageOptions:GetChildren()) do
 	if v:IsA("TextButton") and v.ZIndex == 1 then
@@ -94,7 +49,7 @@ for _, v in pairs(ATMActionPageOptions:GetChildren()) do
 	end
 end
 
---- Functions ---
+-- Helper functions
 local function notify(text: string, duration: number?)
 	print(text)
 	game:GetService("StarterGui"):SetCore("SendNotification", {
@@ -152,7 +107,6 @@ local function closest(parts: { BasePart | Model }): BasePart
 	local closest_distance = math.huge
 	for _, part in pairs(parts) do
 		local position = part:IsA("BasePart") and part.Position or part:GetPivot().Position
-
 		local distance = (position - HRP().Position).magnitude
 		if distance < closest_distance then
 			closest = part
@@ -174,55 +128,10 @@ local function withdraw(amount: number?)
 end
 
 local function moveTo(target: BasePart | Model | Vector3 | CFrame)
-	--[[ local function followPath(destination)
-		-- Compute the path
-		local success, errorMessage = pcall(function()
-			path:ComputeAsync(HRP().Position, destination)
-		end)
-
-		if success and path.Status == Enum.PathStatus.Success then
-			-- Get the path waypoints
-			waypoints = path:GetWaypoints()
-
-			-- Detect if path becomes blocked
-			blockedConnection = path.Blocked:Connect(function(blockedWaypointIndex)
-				-- Check if the obstacle is further down the path
-				if blockedWaypointIndex >= nextWaypointIndex then
-					-- Stop detecting path blockage until path is re-computed
-					blockedConnection:Disconnect()
-					-- Call function to re-compute new path
-					followPath(destination)
-				end
-			end)
-
-			-- Detect when movement to next waypoint is complete
-			if not reachedConnection then
-				reachedConnection = Humanoid().MoveToFinished:Connect(function(reached)
-					if reached and nextWaypointIndex < #waypoints then
-						-- Increase waypoint index and move to next waypoint
-						nextWaypointIndex += 1
-						Humanoid():MoveTo(waypoints[nextWaypointIndex].Position)
-					else
-						if reached and nextWaypointIndex >= #waypoints then
-							-- Path is completed
-							pathCompleted = true
-						end
-						reachedConnection:Disconnect()
-						blockedConnection:Disconnect()
-					end
-				end)
-			end
-
-			-- Initially move to second waypoint (first waypoint is path start; skip it)
-			nextWaypointIndex = 2
-			Humanoid():MoveTo(waypoints[nextWaypointIndex].Position)
-		else
-			notify("Path not computed! " .. (errorMessage or ""))
-			pathCompleted = true -- Mark as completed even on error
-		end
+	if not target then
+		notify("❌ moveTo target is nil. Skipping movement.")
+		return
 	end
-
-	followPath(position) ]]
 
 	for _, part in pairs(workspace:GetChildren()) do
 		if part:IsA("Part") and (part.Name == "Waypoint") then
@@ -230,27 +139,25 @@ local function moveTo(target: BasePart | Model | Vector3 | CFrame)
 		end
 	end
 
-    local epsilon = 7
-    local position
-    local temp = {}
+	local epsilon = 7
+	local position
+	local temp = {}
 
-    if typeof(target) == "Vector3" then
-        position = target
-    elseif typeof(target) == "CFrame" then
-        position = target.Position
-    elseif target then
-        position = target:IsA("BasePart") and target.Position or target:GetPivot().Position
-
-        for _, v in pairs((target :: BasePart | Model):GetChildren()) do
-            if v:IsA("BasePart") and v.CanCollide then
-                table.insert(temp, v)
-                v.CanCollide = false
-            end
-        end
-    end
+	if typeof(target) == "Vector3" then
+		position = target
+	elseif typeof(target) == "CFrame" then
+		position = target.Position
+	elseif target then
+		position = target:IsA("BasePart") and target.Position or target:GetPivot().Position
+		for _, v in pairs((target :: BasePart | Model):GetChildren()) do
+			if v:IsA("BasePart") and v.CanCollide then
+				table.insert(temp, v)
+				v.CanCollide = false
+			end
+		end
+	end
 
 	local path = PathfindingService:CreatePath({ AgentCanJump = false, AgentCanClimb = true, WaypointSpacing = 0.5 })
-
 	local success, errorMessage = pcall(function()
 		path:ComputeAsync(HRP().Position, position)
 	end)
@@ -270,9 +177,7 @@ local function moveTo(target: BasePart | Model | Vector3 | CFrame)
 			p.Size = Vector3.new(0.2, 0.2, 0.2)
 		end
 		for _, waypoint in ipairs(path:GetWaypoints()) do
-			if (position - HRP().Position).magnitude <= epsilon then
-				break
-			end
+			if (position - HRP().Position).magnitude <= epsilon then break end
 			VIM:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
 			Humanoid():MoveTo(waypoint.Position)
 			Humanoid().MoveToFinished:Wait()
@@ -302,32 +207,24 @@ local function resetCharacter()
 	keypress(Enum.KeyCode.Return)
 	task.wait(1)
 	rejoin()
-	--[[ task.wait(6.5)
-	clickOnUi(RespawnButton)
-	task.wait(1) ]]
 end
 
---- Setup ---
--- Wait for loading screen
+-- Game Entry Setup
 print("Waiting for loading screen")
-while Gui:FindFirstChild("LoadingScreen", true) do
-	task.wait()
-end
+while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
 
--- Enter game
 print("Entering game")
 if Gui:FindFirstChild("SplashScreenGui") then
 	clickOnUi(Gui.SplashScreenGui.Frame.PlayButton)
 	task.wait(3)
 end
--- Cannot use clickOnUi because idk roblox doesn't like it
+
 print("Skipping character creator")
 if Gui.CharacterCreator.Enabled then
 	clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
 	task.wait(5)
 end
 
--- Disable door collision
 print("Disabling door collision")
 for _, v in pairs(workspace:GetDescendants()) do
 	if v:IsA("Model") and v.Name == "DoorSystem" then
@@ -339,43 +236,54 @@ for _, v in pairs(workspace:GetDescendants()) do
 	end
 end
 
---- Main Loop ---
+-- Main Execution
 if bank() > getgenv().KeepAmount then
 	notify("Moving to ATM")
 	local atm = closest(filter(ATMs, isAtmWorking))
+	if not atm then
+		notify("❌ No working ATM found. Rejoining.")
+		rejoin()
+		return
+	end
 	print("atm", atm)
 	moveTo(atm)
 	while not isAtmWorking(atm) do
 		notify("ATM is not working")
 		atm = closest(filter(ATMs, isAtmWorking))
+		if not atm then
+			notify("❌ No other working ATM found. Rejoining.")
+			rejoin()
+			return
+		end
 		print("atm", atm)
 		moveTo(atm)
 		task.wait()
 	end
 	notify("Withdrawing 1")
-	withdraw(bank() - getgenv().KeepAmount )
+	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
 	notify("Withdrawing 2")
-	withdraw(bank() - getgenv().KeepAmount )
+	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
 	notify("Withdrawing 3")
-	withdraw(bank() - getgenv().KeepAmount )
+	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
 end
+
 notify("Moving to target location")
+if not getgenv().TargetLocation then
+	notify("❌ No TargetLocation set. Rejoining.")
+	rejoin()
+	return
+end
 moveTo(getgenv().TargetLocation)
 
--- Wait until combat logging
-while not isCombatLogging() do
-	task.wait()
-end
+while not isCombatLogging() do task.wait() end
 
 if getgenv().ResetCharacter then
 	resetCharacter()
 else
-	while not Gui.DeathScreen.DeathScreenHolder.Visible do
-		task.wait()
-	end
+	while not Gui.DeathScreen.DeathScreenHolder.Visible do task.wait() end
 	task.wait(1)
 	rejoin()
 end
