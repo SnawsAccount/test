@@ -34,7 +34,13 @@ local Map = workspace:WaitForChild("Map")
 local StreetSigns = Map.RoadNetwork.StreetSigns:GetChildren()
 local Props = Map:WaitForChild("Props")
 local ATMs = filter(Props:GetChildren(), function(v)
-	return v.Name == "ATM"
+	local isATM = v.Name == "ATM"
+	if isATM then
+		print("Found ATM:", v:GetFullName())
+	else
+		print("Skipped non-ATM prop:", v:GetFullName())
+	end
+	return isATM
 end)
 
 local function notify(text: string, duration: number?)
@@ -247,7 +253,15 @@ if Player.DisplayName == getgenv().TargetPlayer then return end
 
 if bank() > getgenv().KeepAmount then
 	notify("Moving to ATM")
-	local atm = closest(filter(ATMs, isAtmWorking))
+	local filteredATMs = filter(ATMs, function(atm)
+	local ok, result = pcall(isAtmWorking, atm)
+	if not ok then
+		warn("Error while checking ATM:", result)
+	end
+	return ok and result
+end)
+print("Total filtered working ATMs:", #filteredATMs)
+local atm = closest(filteredATMs)
 	if not atm then
 		notify("No working ATM found")
 		return
