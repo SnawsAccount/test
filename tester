@@ -100,12 +100,18 @@ local function closest(parts: { BasePart | Model }): BasePart
 end
 
 local function isAtmWorking(atm: Model)
+	print("Checking ATM:", atm:GetFullName())
 	local screen = atm:FindFirstChild("Screen", true)
 	if not screen then
 		warn("ATM does not have a 'Screen' descendant: " .. tostring(atm))
 		return false
 	end
 	warn("ATM Screen found: " .. tostring(screen) .. ", Enabled = " .. tostring(screen.Enabled))
+	if screen.Enabled then
+		warn("ATM screen is visible; ATM is likely in use or broken.")
+	else
+		warn("ATM screen is hidden; ATM is ready.")
+	end
 	return screen and not screen.Enabled
 end
 
