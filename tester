@@ -101,6 +101,11 @@ end
 
 local function isAtmWorking(atm: Model)
 	local screen = atm:FindFirstChild("Screen", true)
+	if not screen then
+		warn("ATM does not have a 'Screen' descendant: " .. tostring(atm))
+		return false
+	end
+	warn("ATM Screen found: " .. tostring(screen) .. ", Enabled = " .. tostring(screen.Enabled))
 	return screen and not screen.Enabled
 end
 
