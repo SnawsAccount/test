@@ -148,8 +148,18 @@ local function closest(parts: { BasePart | Model }): BasePart
 end
 
 local function isAtmWorking(atm: Model)
-	local screen = atm:FindFirstChild("Screen", true) :: ScreenGui
-	return screen and not screen.Enabled
+	local screen = atm:FindFirstChild("Screen", true)
+	if not screen then
+		warn("ATM has no Screen:", atm)
+		return false
+	end
+	if screen.Enabled == false then
+		print("ATM is working:", atm)
+		return true
+	else
+		print("ATM is not working:", atm)
+		return false
+	end
 end
 
 local function withdraw(amount: number?)
@@ -173,14 +183,16 @@ local function moveTo(target: BasePart | Model | Vector3 | CFrame)
 		position = target
 	elseif typeof(target) == "CFrame" then
 		position = target.Position
-	else
+	elseif typeof(target) == "Instance" and (target:IsA("BasePart") or target:IsA("Model")) then
 		position = target:IsA("BasePart") and target.Position or target:GetPivot().Position
-		for _, v in pairs((target :: BasePart | Model):GetChildren()) do
+		for _, v in pairs(target:GetChildren()) do
 			if v:IsA("BasePart") and v.CanCollide then
 				table.insert(temp, v)
 				v.CanCollide = false
 			end
 		end
+	else
+		error("Invalid target passed to moveTo")
 	end
 
 	local path = PathfindingService:CreatePath({ AgentCanJump = false, AgentCanClimb = true, WaypointSpacing = 0.5 })
