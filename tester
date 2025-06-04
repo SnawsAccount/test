@@ -254,9 +254,12 @@ if Player.DisplayName == getgenv().TargetPlayer then return end
 if bank() > getgenv().KeepAmount then
 	notify("Moving to ATM")
 	local filteredATMs = filter(ATMs, function(atm)
+	print("Checking ATM for filter:", atm:GetFullName())
 	local ok, result = pcall(isAtmWorking, atm)
 	if not ok then
 		warn("Error while checking ATM:", result)
+	else
+		print("ATM is working:", result)
 	end
 	return ok and result
 end)
