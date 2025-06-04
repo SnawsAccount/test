@@ -20,24 +20,58 @@ function map<T, U>(arr: { T }, func: (T) -> U): { U }
 	return new_arr
 end
 
--- Constants
+--- Constants ---
 local Players = game:GetService("Players")
 local VIM = Instance.new("VirtualInputManager")
 local PathfindingService = game:GetService("PathfindingService")
 local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 
 local Player = Players.LocalPlayer
-local Gui = Player.PlayerGui
-local Map = workspace:WaitForChild("Map")
-local Props = Map:WaitForChild("Props")
-local ATMs = filter(Props:GetChildren(), function(v) return v.Name == "ATM" end)
+local Gui = Player.PlayerGui :: PlayerGui
+local Map = workspace:WaitForChild("Map") :: Folder
+local StreetSigns = Map.RoadNetwork.StreetSigns:GetChildren() :: { Model }
+local Props = Map:WaitForChild("Props") :: Folder
+local ATMs = filter(Props:GetChildren(), function(v)
+	return v.Name == "ATM"
+end) :: { Model }
+
+local ATMPositions = {
+	Vector3.new(1000.2333374023438, 255.30435180664063, -634.9163208007813),
+	Vector3.new(839.2535400390625, 255.30136108398438, -164.10479736328126),
+	Vector3.new(1218.8096923828126, 255.2530059814453, -557.3890991210938),
+	Vector3.new(453.50701904296877, 255.85299682617188, 39.35797882080078),
+	Vector3.new(178.30911254882813, 255.4029998779297, -242.9920196533203),
+	Vector3.new(98.92961883544922, 255.30299377441407, -577.2241821289063),
+	Vector3.new(109.73040771484375, 255.2530059814453, 464.5361328125),
+	Vector3.new(-155.82275390625, 255.1853485107422, 442.9078674316406),
+	Vector3.new(-131.2180633544922, 255.21044921875, 106.91988372802735),
+	Vector3.new(-224.43162536621095, 255.2530059814453, 491.16094970703127),
+	Vector3.new(-197.49301147460938, 255.4029998779297, -245.9920196533203),
+	Vector3.new(-507.5982666015625, 256.559814453125, 182.9342498779297),
+	Vector3.new(-201.13021850585938, 255.35302734375, -573.53125),
+	Vector3.new(-598.0117797851563, 258.1029968261719, -165.30462646484376),
+}
+
+if Player.DisplayName == getgenv().TargetPlayer then
+	return
+end
+
+local poses = {}
+for i, atm in ATMs do
+	print(atm:GetPivot().Position)
+	local pos = atm:GetPivot().Position
+	table.insert(poses, { pos.X, pos.Y, pos.Z })
+end
+
+setclipboard(game:GetService("HttpService"):JSONEncode(poses))
+
+local RespawnButton = Gui.DeathScreen.DeathScreenHolder.Frame.RespawnButtonFrame.RespawnButton :: TextButton
 
 local ATMActionPageOptions = Gui:FindFirstChild("ATMActionAmount", true).Parent
 local ATMGui = ATMActionPageOptions.Parent.Parent
-local ATMWithdrawButton = ATMGui:FindFirstChild("ATMWithdrawButton", true)
+local ATMWithdrawButton = ATMGui:FindFirstChild("ATMWithdrawButton", true) :: TextButton
 local ATMMainPageOptions = ATMWithdrawButton.Parent
-local ATMAmount = ATMActionPageOptions:FindFirstChild("Frame"):FindFirstChildOfClass("TextBox")
+local ATMAmount = ATMActionPageOptions:FindFirstChild("Frame"):FindFirstChildOfClass("TextBox") :: TextBox
 
 local ATMConfirmButton
 for _, v in pairs(ATMActionPageOptions:GetChildren()) do
@@ -46,16 +80,14 @@ for _, v in pairs(ATMActionPageOptions:GetChildren()) do
 	end
 end
 
--- Utilities
+--- Functions ---
 local function notify(text: string, duration: number?)
 	print(text)
-	pcall(function()
-		game:GetService("StarterGui"):SetCore("SendNotification", {
-			Title = "AutoDrop",
-			Text = text,
-			Duration = duration or 3,
-		})
-	end)
+	game:GetService("StarterGui"):SetCore("SendNotification", {
+		Title = "AutoDrop",
+		Text = text,
+		Duration = duration or 3,
+	})
 end
 
 local function rejoin()
@@ -94,15 +126,16 @@ local function Character()
 end
 
 local function Humanoid()
-	return Character():WaitForChild("Humanoid")
+	return Character():WaitForChild("Humanoid") :: Humanoid
 end
 
 local function HRP()
-	return Character():WaitForChild("HumanoidRootPart")
+	return Character():WaitForChild("HumanoidRootPart") :: Part
 end
 
-local function closest(parts: { BasePart | Model }): BasePart?
-	local closest, closest_distance = nil, math.huge
+local function closest(parts: { BasePart | Model }): BasePart
+	local closest = nil
+	local closest_distance = math.huge
 	for _, part in pairs(parts) do
 		local position = part:IsA("BasePart") and part.Position or part:GetPivot().Position
 		local distance = (position - HRP().Position).magnitude
@@ -115,7 +148,7 @@ local function closest(parts: { BasePart | Model }): BasePart?
 end
 
 local function isAtmWorking(atm: Model)
-	local screen = atm:FindFirstChild("Screen", true)
+	local screen = atm:FindFirstChild("Screen", true) :: ScreenGui
 	return screen and not screen.Enabled
 end
 
@@ -125,12 +158,14 @@ local function withdraw(amount: number?)
 	clickOnOffscreenUi(ATMConfirmButton)
 end
 
-local function moveTo(target: BasePart | Model | Vector3 | CFrame?)
-	if not target then
-		notify("⚠️ moveTo called with nil target. Skipping movement.")
-		return
+local function moveTo(target: BasePart | Model | Vector3 | CFrame)
+	for _, part in pairs(workspace:GetChildren()) do
+		if part:IsA("Part") and (part.Name == "Waypoint") then
+			part:Destroy()
+		end
 	end
 
+	local epsilon = 7
 	local position
 	local temp = {}
 
@@ -138,21 +173,14 @@ local function moveTo(target: BasePart | Model | Vector3 | CFrame?)
 		position = target
 	elseif typeof(target) == "CFrame" then
 		position = target.Position
-	elseif target:IsA("BasePart") then
-		position = target.Position
-	elseif target:IsA("Model") then
-		position = target:GetPivot().Position
-		for _, v in pairs(target:GetChildren()) do
+	else
+		position = target:IsA("BasePart") and target.Position or target:GetPivot().Position
+		for _, v in pairs((target :: BasePart | Model):GetChildren()) do
 			if v:IsA("BasePart") and v.CanCollide then
 				table.insert(temp, v)
 				v.CanCollide = false
 			end
 		end
-	end
-
-	if not position then
-		notify("❌ No position available for moveTo. Target invalid.")
-		return
 	end
 
 	local path = PathfindingService:CreatePath({ AgentCanJump = false, AgentCanClimb = true, WaypointSpacing = 0.5 })
@@ -167,15 +195,27 @@ local function moveTo(target: BasePart | Model | Vector3 | CFrame?)
 
 	if success and path.Status == Enum.PathStatus.Success then
 		for _, waypoint in ipairs(path:GetWaypoints()) do
-			if (position - HRP().Position).magnitude <= 7 then break end
+			local p = Instance.new("Part", workspace)
+			p.Position = waypoint.Position
+			p.Name = "Waypoint"
+			p.Anchored = true
+			p.CanCollide = false
+			p.Color = Color3.new(1, 0, 0)
+			p.Size = Vector3.new(0.2, 0.2, 0.2)
+		end
+		for _, waypoint in ipairs(path:GetWaypoints()) do
+			if (position - HRP().Position).magnitude <= epsilon then
+				break
+			end
 			VIM:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
 			Humanoid():MoveTo(waypoint.Position)
 			Humanoid().MoveToFinished:Wait()
 		end
 		VIM:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
 	else
-		notify("❌ Pathfinding failed: " .. (errorMessage or "") .. " | Status: " .. tostring(path.Status))
+		notify("Path not computed " .. (errorMessage or "") .. tostring(path.Status))
 		rejoin()
+		error("Path not computed " .. (errorMessage or "") .. tostring(path.Status))
 	end
 end
 
@@ -185,7 +225,7 @@ local function bank()
 			return tonumber(v.Text:sub(16))
 		end
 	end
-	error("Could not retrieve bank value")
+	error("Couldn't get money")
 end
 
 local function resetCharacter()
@@ -198,9 +238,11 @@ local function resetCharacter()
 	rejoin()
 end
 
--- Loading phase
+--- Setup ---
 print("Waiting for loading screen")
-while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
+while Gui:FindFirstChild("LoadingScreen", true) do
+	task.wait()
+end
 
 print("Entering game")
 if Gui:FindFirstChild("SplashScreenGui") then
@@ -209,53 +251,51 @@ if Gui:FindFirstChild("SplashScreenGui") then
 end
 
 print("Skipping character creator")
-if Gui:FindFirstChild("CharacterCreator") and Gui.CharacterCreator.Enabled then
+if Gui.CharacterCreator.Enabled then
 	clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
 	task.wait(5)
 end
 
-print("Disabling door collisions")
+print("Disabling door collision")
 for _, v in pairs(workspace:GetDescendants()) do
 	if v:IsA("Model") and v.Name == "DoorSystem" then
-		for _, part in pairs(v:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
+		for _, v in pairs(v:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.CanCollide = false
 			end
 		end
 	end
 end
 
--- Main logic
-if Player.DisplayName == getgenv().TargetPlayer then return end
+--- Main Loop ---
+if bank() > getgenv().KeepAmount then
+	notify("Searching for working ATM...")
 
-if bank() > (getgenv().KeepAmount or 0) then
-	notify("💸 Moving to ATM")
-	local atm = closest(filter(ATMs, isAtmWorking))
-	if not atm then
-		notify("❌ No working ATM found.")
-		rejoin()
-	end
+	local atm
 
-	moveTo(atm)
-	while atm and not isAtmWorking(atm) do
-		notify("ATM is not working, finding another...")
+	repeat
 		atm = closest(filter(ATMs, isAtmWorking))
 		if not atm then
-			notify("❌ All ATMs are broken.")
-			rejoin()
+			notify("No working ATM found, retrying...")
+			task.wait(1)
 		end
-		moveTo(atm)
-		task.wait()
-	end
+	until atm
 
-	for i = 1, 3 do
-		notify("💵 Withdrawing attempt " .. i)
-		withdraw(bank() - getgenv().KeepAmount)
-		task.wait(0.1)
-	end
+	print("atm", atm)
+	moveTo(atm)
+
+	notify("Withdrawing 1")
+	withdraw(bank() - getgenv().KeepAmount)
+	task.wait(0.1)
+	notify("Withdrawing 2")
+	withdraw(bank() - getgenv().KeepAmount)
+	task.wait(0.1)
+	notify("Withdrawing 3")
+	withdraw(bank() - getgenv().KeepAmount)
+	task.wait(0.1)
 end
 
-notify("📍 Moving to target location")
+notify("Moving to target location")
 moveTo(getgenv().TargetLocation)
 
 while not isCombatLogging() do
