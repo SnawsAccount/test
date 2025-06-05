@@ -1,3 +1,7 @@
+-- Your full original script with the updated, frame-synced glideTo function
+-- Updated glideTo uses RunService.RenderStepped for smooth, natural movement
+
+-- START OF SCRIPT
 if getgenv().KeepAmount == nil then
 	getgenv().KeepAmount = 99
 end
@@ -41,6 +45,7 @@ local Players = game:GetService("Players")
 local VIM = Instance.new("VirtualInputManager")
 local PathfindingService = game:GetService("PathfindingService")
 local TeleportService = game:GetService("TeleportService")
+local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
 
@@ -174,18 +179,21 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
--- Smooth glide movement
+-- FRAME-SYNCED GLIDE MOVEMENT
 local function glideTo(pos: Vector3, speed: number)
 	local root = HRP()
-	local dist = (root.Position - pos).Magnitude
-	local duration = dist / speed
-	local steps = math.ceil(duration / 0.03)
+	local start = root.Position
+	local distance = (pos - start).Magnitude
+	local duration = distance / speed
+	local elapsed = 0
 
-	for i = 1, steps do
-		local alpha = i / steps
-		local newPos = root.Position:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- hover height = 6
-		task.wait(0.03)
+	while elapsed < duration do
+		local dt = RunService.RenderStepped:Wait()
+		elapsed += dt
+
+		local alpha = math.clamp(elapsed / duration, 0, 1)
+		local newPos = start:Lerp(pos, alpha)
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- maintain hover height
 	end
 end
 
@@ -217,7 +225,7 @@ local function moveTo(target, checkATM)
 	local path = PathfindingService:CreatePath({
 		AgentCanJump = false,
 		AgentCanClimb = true,
-		WaypointSpacing = 2
+		WaypointSpacing = 4
 	})
 
 	local success, err = pcall(function()
