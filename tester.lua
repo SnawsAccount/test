@@ -216,7 +216,7 @@ local function moveTo(target, checkATM)
 	local path = PathfindingService:CreatePath({
 		AgentCanJump = true,
 		AgentCanClimb = true,
-		WaypointSpacing = 8
+		WaypointSpacing = 7
 	})
 
 	local success, err = pcall(function()
