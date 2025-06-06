@@ -18,7 +18,7 @@ end
 print("Waiting 3 seconds")
 task.wait(3)
 
-function filter<T>(arr: { T }, func: (T) -> boolean): { T }
+function filter(arr, func)
 	local new_arr = {}
 	for _, v in pairs(arr) do
 		if func(v) then
@@ -28,7 +28,7 @@ function filter<T>(arr: { T }, func: (T) -> boolean): { T }
 	return new_arr
 end
 
-function map<T, U>(arr: { T }, func: (T) -> U): { U }
+function map(arr, func)
 	local new_arr = {}
 	for i, v in pairs(arr) do
 		new_arr[i] = func(v)
