@@ -174,22 +174,31 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
--- Smooth glide movement
+-- Safe glideTo using raycast to stay above terrain
 local function glideTo(pos: Vector3, speed: number)
 	local root = HRP()
 	local dist = (root.Position - pos).Magnitude
 	local duration = dist / speed
-	local steps = math.ceil(duration / 0.03)
+	local steps = math.clamp(math.ceil(duration / 0.03), 10, 100)
 
 	for i = 1, steps do
 		local alpha = i / steps
 		local newPos = root.Position:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- hover height = 6
+
+		local rayOrigin = Vector3.new(newPos.X, newPos.Y + 30, newPos.Z)
+		local rayDirection = Vector3.new(0, -100, 0)
+		local result = workspace:Raycast(rayOrigin, rayDirection)
+
+		local safeY = newPos.Y
+		if result then
+			safeY = result.Position.Y + 5.8
+		end
+
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, safeY, newPos.Z))
 		task.wait(0.03)
 	end
 end
 
--- Pathfinding + Glide
 local function moveTo(target, checkATM)
 	for _, part in pairs(workspace:GetChildren()) do
 		if part:IsA("Part") and part.Name == "Waypoint" then
@@ -240,13 +249,26 @@ local function moveTo(target, checkATM)
 		p.Size = Vector3.new(0.2, 0.2, 0.2)
 	end
 
+	local lastPos = HRP().Position
+	HRP().CanCollide = false
+	local head = Character():FindFirstChild("Head")
+	if head then head.CanCollide = false end
+
 	for _, waypoint in ipairs(path:GetWaypoints()) do
-		if (position - HRP().Position).Magnitude <= 6 then break end
+		if (HRP().Position - waypoint.Position).Magnitude <= 4 then
+			continue
+		end
 		if checkATM and targetModel and not isAtmWorking(targetModel) then
 			notify("ATM stopped working, finding another one")
 			return false
 		end
 		glideTo(waypoint.Position, 20)
+		if (HRP().Position - lastPos).Magnitude < 1 then
+			notify("Detected stuck movement, rejoining...")
+			rejoin()
+			return false
+		end
+		lastPos = HRP().Position
 	end
 	return true
 end
