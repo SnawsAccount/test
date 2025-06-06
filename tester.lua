@@ -183,14 +183,22 @@ local function glideTo(pos, speed)
 		local alpha = i / steps
 		local newPos = root.Position:Lerp(pos, alpha)
 
-		-- Use actual Y height from path, not flat hover height
-		local targetY = pos.Y + 2 -- slight hover above terrain
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, targetY, newPos.Z))
+		-- Raycast downward to find the ground below the character
+		local rayOrigin = Vector3.new(newPos.X, newPos.Y + 30, newPos.Z)
+		local rayDirection = Vector3.new(0, -100, 0)
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = {workspace.Map}
+		raycastParams.FilterType = Enum.RaycastFilterType.Whitelist
+
+		local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+		local groundY = rayResult and rayResult.Position.Y or newPos.Y
+
+		local hoverY = groundY + 6
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, hoverY, newPos.Z))
 
 		task.wait(0.03)
 	end
 end
-
 
 local function moveTo(target, checkATM)
 	for _, part in pairs(workspace:GetChildren()) do
