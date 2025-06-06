@@ -173,7 +173,7 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
-local function glideTo(pos: Vector3, speed: number)
+local function glideTo(pos, speed)
 	local root = HRP()
 	local dist = (root.Position - pos).Magnitude
 	local duration = dist / speed
@@ -182,10 +182,15 @@ local function glideTo(pos: Vector3, speed: number)
 	for i = 1, steps do
 		local alpha = i / steps
 		local newPos = root.Position:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z))
+
+		-- Use actual Y height from path, not flat hover height
+		local targetY = pos.Y + 2 -- slight hover above terrain
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, targetY, newPos.Z))
+
 		task.wait(0.03)
 	end
 end
+
 
 local function moveTo(target, checkATM)
 	for _, part in pairs(workspace:GetChildren()) do
