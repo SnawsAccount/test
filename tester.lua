@@ -1,12 +1,11 @@
 if getgenv().KeepAmount == nil then
-	getgenv().KeepAmount = 99
+	getgenv().KeepAmount = 1000
 end
 if getgenv().ResetCharacter == nil then
 	getgenv().ResetCharacter = true
 end
-if getgenv().TargetLocation == nil then
-	getgenv().TargetLocation = Vector3.new(-572.6912841796875, 279.4130554199219, -1449.682373046875)
-end
+getgenv().TargetLocation1 = Vector3.new(-628.5126342773438, 276.837890625, -1479.9002685546875)
+getgenv().TargetLocation2 = Vector3.new(-450.40960693359375, 310.3192138671875, -1456.2130126953125)
 if getgenv().JobId == nil then
 	getgenv().JobId = game.JobId
 end
@@ -174,7 +173,6 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
--- Smooth glide movement
 local function glideTo(pos: Vector3, speed: number)
 	local root = HRP()
 	local dist = (root.Position - pos).Magnitude
@@ -184,12 +182,11 @@ local function glideTo(pos: Vector3, speed: number)
 	for i = 1, steps do
 		local alpha = i / steps
 		local newPos = root.Position:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- hover height = 6
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z))
 		task.wait(0.03)
 	end
 end
 
--- Pathfinding + Glide
 local function moveTo(target, checkATM)
 	for _, part in pairs(workspace:GetChildren()) do
 		if part:IsA("Part") and part.Name == "Waypoint" then
@@ -272,7 +269,6 @@ local function resetCharacter()
 	rejoin()
 end
 
---- Setup ---
 print("Waiting for loading screen")
 while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
 
@@ -332,8 +328,11 @@ if bank() > getgenv().KeepAmount then
 	task.wait(0.1)
 end
 
-notify("Moving to target location")
-moveTo(getgenv().TargetLocation)
+notify("Moving to target location 1")
+moveTo(getgenv().TargetLocation1)
+
+notify("Now moving to target location 2")
+moveTo(getgenv().TargetLocation2)
 
 while not isCombatLogging() do task.wait() end
 
