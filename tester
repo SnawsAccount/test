@@ -1,7 +1,3 @@
--- Your full original script with the updated, frame-synced glideTo function
--- Updated glideTo uses RunService.RenderStepped for smooth, natural movement
-
--- START OF SCRIPT
 if getgenv().KeepAmount == nil then
 	getgenv().KeepAmount = 99
 end
@@ -45,7 +41,6 @@ local Players = game:GetService("Players")
 local VIM = Instance.new("VirtualInputManager")
 local PathfindingService = game:GetService("PathfindingService")
 local TeleportService = game:GetService("TeleportService")
-local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
 
@@ -179,21 +174,18 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
--- FRAME-SYNCED GLIDE MOVEMENT
+-- Smooth glide movement
 local function glideTo(pos: Vector3, speed: number)
 	local root = HRP()
-	local start = root.Position
-	local distance = (pos - start).Magnitude
-	local duration = distance / speed
-	local elapsed = 0
+	local dist = (root.Position - pos).Magnitude
+	local duration = dist / speed
+	local steps = math.ceil(duration / 0.03)
 
-	while elapsed < duration do
-		local dt = RunService.RenderStepped:Wait()
-		elapsed += dt
-
-		local alpha = math.clamp(elapsed / duration, 0, 1)
-		local newPos = start:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 3, newPos.Z)) -- maintain hover height
+	for i = 1, steps do
+		local alpha = i / steps
+		local newPos = root.Position:Lerp(pos, alpha)
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 3, newPos.Z)) -- hover height = 6
+		task.wait(0.03)
 	end
 end
 
@@ -223,9 +215,9 @@ local function moveTo(target, checkATM)
 	end
 
 	local path = PathfindingService:CreatePath({
-		AgentCanJump = true,
+		AgentCanJump = false,
 		AgentCanClimb = true,
-		WaypointSpacing = 22
+		WaypointSpacing = 15
 	})
 
 	local success, err = pcall(function()
@@ -254,7 +246,7 @@ local function moveTo(target, checkATM)
 			notify("ATM stopped working, finding another one")
 			return false
 		end
-		glideTo(waypoint.Position, 24)
+		glideTo(waypoint.Position, 20)
 	end
 	return true
 end
