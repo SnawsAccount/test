@@ -7,6 +7,9 @@ end
 if getgenv().TargetLocation == nil then
 	getgenv().TargetLocation = Vector3.new(-572.6912841796875, 279.4130554199219, -1449.682373046875)
 end
+if getgenv().GlideSpeed == nil then
+	getgenv().GlideSpeed = 24
+end
 if getgenv().JobId == nil then
 	getgenv().JobId = game.JobId
 end
@@ -18,7 +21,7 @@ end
 print("Waiting 3 seconds")
 task.wait(3)
 
-function filter(arr, func)
+function filter<T>(arr: { T }, func: (T) -> boolean): { T }
 	local new_arr = {}
 	for _, v in pairs(arr) do
 		if func(v) then
@@ -28,7 +31,7 @@ function filter(arr, func)
 	return new_arr
 end
 
-function map(arr, func)
+function map<T, U>(arr: { T }, func: (T) -> U): { U }
 	local new_arr = {}
 	for i, v in pairs(arr) do
 		new_arr[i] = func(v)
@@ -175,17 +178,16 @@ local function withdraw(amount)
 end
 
 -- Smooth glide movement
-local function glideTo(pos: Vector3, speed: number)
+local function glideTo(pos, speed)
 	local root = HRP()
 	local start = root.Position
 	local dist = (start - pos).Magnitude
 	local duration = dist / speed
 	local steps = math.max(1, math.ceil(duration / 0.03))
-
 	for i = 1, steps do
 		local alpha = i / steps
 		local newPos = start:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- hover height = 6
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z))
 		task.wait(0.03)
 	end
 end
