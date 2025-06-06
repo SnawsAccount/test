@@ -1,3 +1,5 @@
+-- ✅ FULL SCRIPT WITH glideTo LIMITED TO +2 Y MOVEMENT PER STEP
+
 if getgenv().KeepAmount == nil then
 	getgenv().KeepAmount = 99
 end
@@ -174,7 +176,7 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
--- glideTo with max Y change of +2
+-- ✅ glideTo with max Y change of +2
 local function glideTo(pos: Vector3, speed: number)
 	local root = HRP()
 	local dist = (root.Position - pos).Magnitude
@@ -186,7 +188,6 @@ local function glideTo(pos: Vector3, speed: number)
 		local currentPos = root.Position
 		local targetPos = currentPos:Lerp(pos, alpha)
 
-		-- Limit vertical climb
 		local deltaY = targetPos.Y - currentPos.Y
 		if deltaY > 2 then
 			targetPos = Vector3.new(targetPos.X, currentPos.Y + 2, targetPos.Z)
@@ -199,5 +200,151 @@ local function glideTo(pos: Vector3, speed: number)
 	end
 end
 
--- (rest of the script remains unchanged)
--- The rest of your original script continues from here...
+-- ✅ continue full script
+
+local function moveTo(target, checkATM)
+	for _, part in pairs(workspace:GetChildren()) do
+		if part:IsA("Part") and part.Name == "Waypoint" then
+			part:Destroy()
+		end
+	end
+
+	local position, targetModel
+	if typeof(target) == "Vector3" then
+		position = target
+	elseif typeof(target) == "CFrame" then
+		position = target.Position
+	elseif target:IsA("BasePart") then
+		position = target.Position
+	else
+		position = target:GetPivot().Position
+		targetModel = target
+		for _, v in pairs(target:GetChildren()) do
+			if v:IsA("BasePart") and v.CanCollide then
+				v.CanCollide = false
+			end
+		end
+	end
+
+	local path = PathfindingService:CreatePath({
+		AgentCanJump = false,
+		AgentCanClimb = true,
+		WaypointSpacing = 8
+	})
+
+	local success, err = pcall(function()
+		path:ComputeAsync(HRP().Position, position)
+	end)
+
+	if not success or path.Status ~= Enum.PathStatus.Success then
+		notify("Path failed: " .. (err or tostring(path.Status)))
+		rejoin()
+		error("Path failed: " .. (err or tostring(path.Status)))
+	end
+
+	local lastPos = HRP().Position
+	HRP().CanCollide = false
+	local head = Character():FindFirstChild("Head")
+	if head then head.CanCollide = false end
+
+	for _, waypoint in ipairs(path:GetWaypoints()) do
+		if (HRP().Position - waypoint.Position).Magnitude <= 4 then continue end
+		if checkATM and targetModel and not isAtmWorking(targetModel) then
+			notify("ATM stopped working, finding another one")
+			return false
+		end
+		glideTo(waypoint.Position, 20)
+		if (HRP().Position - lastPos).Magnitude < 1 then
+			notify("Detected stuck movement, rejoining...")
+			rejoin()
+			return false
+		end
+		lastPos = HRP().Position
+	end
+	return true
+end
+
+local function bank()
+	for _, v in pairs(ATMMainPageOptions:GetChildren()) do
+		if v:IsA("TextLabel") and v.Text:find("Bank") then
+			local bank = tonumber(v.Text:sub(16))
+			if not bank then error("Couldn't get bank balance " .. v.Text) end
+			return bank
+		end
+	end
+	error("Couldn't get bank balance")
+end
+
+local function resetCharacter()
+	keypress(Enum.KeyCode.Escape)
+	task.wait(0.1)
+	keypress(Enum.KeyCode.R)
+	task.wait(0.1)
+	keypress(Enum.KeyCode.Return)
+	task.wait(1)
+	rejoin()
+end
+
+-- Setup
+while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
+if Gui:FindFirstChild("SplashScreenGui") then
+	clickOnUi(Gui.SplashScreenGui.Frame.PlayButton)
+	task.wait(5)
+end
+if Gui.CharacterCreator and Gui.CharacterCreator.Enabled then
+	clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
+	task.wait(5)
+end
+if Tutorial.Visible then
+	clickOnUi(TutorialCloseButton)
+end
+
+for _, v in pairs(workspace:GetDescendants()) do
+	if v:IsA("Model") and v.Name == "DoorSystem" then
+		for _, p in pairs(v:GetDescendants()) do
+			if p:IsA("BasePart") then
+				p.CanCollide = false
+			end
+		end
+	end
+end
+
+-- Main loop
+if bank() > getgenv().KeepAmount then
+	notify("Moving to ATM")
+	while task.wait(0.1) do
+		findNewATMs()
+		local workingATMs = filter(ATMs, isAtmWorking)
+		local atm = closest(workingATMs)
+		if not atm or not isAtmWorking(atm) then
+			notify("ATM is nil or not working")
+			continue
+		end
+		if moveTo(atm, true) and isAtmWorking(atm) then
+			notify("Moved to ATM")
+			break
+		end
+	end
+
+	notify("Withdrawing")
+	withdraw(bank() - getgenv().KeepAmount)
+	task.wait(0.1)
+	withdraw(bank() - getgenv().KeepAmount)
+	task.wait(0.1)
+	withdraw(bank() - getgenv().KeepAmount)
+	task.wait(0.1)
+end
+
+notify("Moving to target location")
+moveTo(getgenv().TargetLocation)
+
+while not isCombatLogging() do task.wait() end
+
+if getgenv().ResetCharacter then
+	resetCharacter()
+else
+	while not Gui.DeathScreen.DeathScreenHolder.Visible do task.wait() end
+	task.wait(1)
+	rejoin()
+end
+-- Add additional logic or commands as needed.
