@@ -7,9 +7,6 @@ end
 if getgenv().TargetLocation == nil then
 	getgenv().TargetLocation = Vector3.new(-572.6912841796875, 279.4130554199219, -1449.682373046875)
 end
-if getgenv().GlideSpeed == nil then
-	getgenv().GlideSpeed = 24
-end
 if getgenv().JobId == nil then
 	getgenv().JobId = game.JobId
 end
@@ -178,19 +175,18 @@ local function withdraw(amount)
 end
 
 -- Smooth glide movement
-local function glideTo(pos, speed)
+local function glideTo(pos: Vector3, speed: number)
 	local root = HRP()
-	local start = root.Position
-	local dist = (start - pos).Magnitude
+	local dist = (root.Position - pos).Magnitude
 	local duration = dist / speed
-	local steps = math.max(1, math.ceil(duration / 0.03))
+	local steps = math.ceil(duration / 0.03)
+
 	for i = 1, steps do
 		local alpha = i / steps
-		local newPos = start:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z))
+		local newPos = root.Position:Lerp(pos, alpha)
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- hover height = 6
 		task.wait(0.03)
 	end
-end
 end
 
 -- Pathfinding + Glide
@@ -221,7 +217,7 @@ local function moveTo(target, checkATM)
 	local path = PathfindingService:CreatePath({
 		AgentCanJump = false,
 		AgentCanClimb = true,
-		WaypointSpacing = 2
+		WaypointSpacing = 5
 	})
 
 	local success, err = pcall(function()
@@ -250,7 +246,7 @@ local function moveTo(target, checkATM)
 			notify("ATM stopped working, finding another one")
 			return false
 		end
-		glideTo(waypoint.Position, getgenv().GlideSpeed)
+		glideTo(waypoint.Position, 20)
 	end
 	return true
 end
