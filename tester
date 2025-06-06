@@ -1,38 +1,22 @@
--- Your full original script with the updated, frame-synced glideTo function
--- Updated glideTo uses RunService.RenderStepped for smooth, natural movement
-
--- START OF SCRIPT
-if getgenv().KeepAmount == nil then
-	getgenv().KeepAmount = 99
-end
-if getgenv().ResetCharacter == nil then
-	getgenv().ResetCharacter = true
-end
+if getgenv().KeepAmount == nil then getgenv().KeepAmount = 99 end
+if getgenv().ResetCharacter == nil then getgenv().ResetCharacter = true end
 if getgenv().TargetLocation == nil then
 	getgenv().TargetLocation = Vector3.new(-572.6912841796875, 279.4130554199219, -1449.682373046875)
 end
-if getgenv().JobId == nil then
-	getgenv().JobId = game.JobId
-end
+if getgenv().JobId == nil then getgenv().JobId = game.JobId end
 
-if not game:IsLoaded() then
-	game.Loaded:Wait()
-end
-
-print("Waiting 3 seconds")
+if not game:IsLoaded() then game.Loaded:Wait() end
 task.wait(3)
 
-function filter<T>(arr: { T }, func: (T) -> boolean): { T }
+function filter(arr, func)
 	local new_arr = {}
 	for _, v in pairs(arr) do
-		if func(v) then
-			table.insert(new_arr, v)
-		end
+		if func(v) then table.insert(new_arr, v) end
 	end
 	return new_arr
 end
 
-function map<T, U>(arr: { T }, func: (T) -> U): { U }
+function map(arr, func)
 	local new_arr = {}
 	for i, v in pairs(arr) do
 		new_arr[i] = func(v)
@@ -40,7 +24,7 @@ function map<T, U>(arr: { T }, func: (T) -> U): { U }
 	return new_arr
 end
 
---- Constants ---
+-- Constants
 local Players = game:GetService("Players")
 local VIM = Instance.new("VirtualInputManager")
 local PathfindingService = game:GetService("PathfindingService")
@@ -48,7 +32,6 @@ local TeleportService = game:GetService("TeleportService")
 local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
-
 if game.JobId ~= getgenv().JobId then
 	while task.wait(5) do
 		TeleportService:TeleportToPlaceInstance(game.PlaceId, getgenv().JobId, Player)
@@ -59,7 +42,6 @@ local Gui = Player.PlayerGui
 local Map = workspace:WaitForChild("Map")
 local Props = Map:WaitForChild("Props")
 local ATMFolder = Props:WaitForChild("ATMs")
-
 local ATMs = ATMFolder:GetChildren()
 assert(#ATMs > 0, "ATMs not found (they probably changed where ATMs are)")
 
@@ -73,44 +55,36 @@ local function findNewATMs()
 				break
 			end
 		end
-		if not already then
-			table.insert(ATMs, new)
-		end
+		if not already then table.insert(ATMs, new) end
 	end
 end
 
-if Player.DisplayName == getgenv().TargetPlayer then
-	return
-end
+if Player.DisplayName == getgenv().TargetPlayer then return end
 
+-- Cache ATM positions
 local poses = {}
 for _, atm in ipairs(ATMs) do
 	local pos = atm:GetPivot().Position
 	table.insert(poses, { pos.X, pos.Y, pos.Z })
 end
-
 setclipboard(game:GetService("HttpService"):JSONEncode(poses))
 
+-- UI setup
 local RespawnButton = Gui.DeathScreen.DeathScreenHolder.Frame.RespawnButtonFrame.RespawnButton
-
 local Tutorial = Gui:WaitForChild("Slideshow"):WaitForChild("SlideshowHolder")
 local TutorialCloseButton = Tutorial:WaitForChild("SlideshowCloseButton")
-
 local ATMActionPageOptions = Gui:FindFirstChild("ATMActionAmount", true).Parent
 local ATMGui = ATMActionPageOptions.Parent.Parent
 local ATMWithdrawButton = ATMGui:FindFirstChild("ATMWithdrawButton", true)
 local ATMMainPageOptions = ATMWithdrawButton.Parent
 local ATMAmount = ATMActionPageOptions:FindFirstChild("Frame"):FindFirstChildOfClass("TextBox")
-
 local ATMConfirmButton
 for _, v in pairs(ATMActionPageOptions:GetChildren()) do
-	if v:IsA("TextButton") and v.ZIndex == 1 then
-		ATMConfirmButton = v
-	end
+	if v:IsA("TextButton") and v.ZIndex == 1 then ATMConfirmButton = v end
 end
 
---- Utility Functions ---
-local function notify(text: string, duration: number?)
+-- Functions
+local function notify(text, duration)
 	print(text)
 	game:GetService("StarterGui"):SetCore("SendNotification", {
 		Title = "AutoDrop",
@@ -125,14 +99,14 @@ local function rejoin()
 	end
 end
 
-local function keypress(key: Enum.KeyCode)
+local function keypress(key)
 	VIM:SendKeyEvent(true, key, false, game)
 	task.wait()
 	VIM:SendKeyEvent(false, key, false, game)
 	task.wait()
 end
 
-local function clickOnUi(element: TextButton)
+local function clickOnUi(element)
 	task.spawn(function()
 		setthreadidentity(2)
 		firesignal(element.MouseButton1Click)
@@ -144,17 +118,9 @@ local function isCombatLogging()
 	return Gui.Hotbar.HotbarHolder.List.HotbarCombatLogging.Visible
 end
 
-local function Character()
-	return Player.Character or Player.CharacterAdded:Wait()
-end
-
-local function Humanoid()
-	return Character():WaitForChild("Humanoid")
-end
-
-local function HRP()
-	return Character():WaitForChild("HumanoidRootPart")
-end
+local function Character() return Player.Character or Player.CharacterAdded:Wait() end
+local function Humanoid() return Character():WaitForChild("Humanoid") end
+local function HRP() return Character():WaitForChild("HumanoidRootPart") end
 
 local function closest(parts)
 	local closest, closest_distance = nil, math.huge
@@ -179,22 +145,16 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
--- FRAME-SYNCED GLIDE MOVEMENT
-local RunService = game:GetService("RunService")
-
-local RunService = game:GetService("RunService")
-
-local function glideTo(targetPos: Vector3, speed: number)
+-- Updated velocity-based glideTo
+local function glideTo(targetPos, speed)
 	local root = HRP()
 	local hoverHeight = 6
-	local stepDistance = speed / 60 -- assume 60 FPS as base
+	local stepDistance = speed / 60
 
 	while true do
 		local current = root.Position
 		local direction = (targetPos - current)
-		if direction.Magnitude <= stepDistance then
-			break
-		end
+		if direction.Magnitude <= stepDistance then break end
 
 		local move = direction.Unit * stepDistance
 		local nextPos = current + move
@@ -203,34 +163,12 @@ local function glideTo(targetPos: Vector3, speed: number)
 		RunService.RenderStepped:Wait()
 	end
 
-	-- Snap to final target
 	root.CFrame = CFrame.new(Vector3.new(targetPos.X, targetPos.Y + hoverHeight, targetPos.Z))
 end
 
-		local move = direction.Unit * stepDistance
-		local nextPos = current + move
-		root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetPos.Y + hoverHeight, nextPos.Z))
-
-		RunService.RenderStepped:Wait()
-	end
-
-	-- Snap to final target
-	root.CFrame = CFrame.new(Vector3.new(targetPos.X, targetPos.Y + hoverHeight, targetPos.Z))
-enderStepped:Wait()
-		elapsed += dt
-
-		local alpha = math.clamp(elapsed / duration, 0, 1)
-		local newPos = start:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- maintain hover height
-	end
-end
-
--- Pathfinding + Glide
 local function moveTo(target, checkATM)
 	for _, part in pairs(workspace:GetChildren()) do
-		if part:IsA("Part") and part.Name == "Waypoint" then
-			part:Destroy()
-		end
+		if part:IsA("Part") and part.Name == "Waypoint" then part:Destroy() end
 	end
 
 	local position, targetModel
@@ -244,9 +182,7 @@ local function moveTo(target, checkATM)
 		position = target:GetPivot().Position
 		targetModel = target
 		for _, v in pairs(target:GetChildren()) do
-			if v:IsA("BasePart") and v.CanCollide then
-				v.CanCollide = false
-			end
+			if v:IsA("BasePart") and v.CanCollide then v.CanCollide = false end
 		end
 	end
 
@@ -267,19 +203,9 @@ local function moveTo(target, checkATM)
 	end
 
 	for _, waypoint in ipairs(path:GetWaypoints()) do
-		local p = Instance.new("Part", workspace)
-		p.Position = waypoint.Position
-		p.Name = "Waypoint"
-		p.Anchored = true
-		p.CanCollide = false
-		p.Color = Color3.new(1, 0, 0)
-		p.Size = Vector3.new(0.2, 0.2, 0.2)
-	end
-
-	for _, waypoint in ipairs(path:GetWaypoints()) do
 		if (position - HRP().Position).Magnitude <= 6 then break end
 		if checkATM and targetModel and not isAtmWorking(targetModel) then
-			notify("ATM stopped working, finding another one")
+			notify("ATM stopped working, finding another")
 			return false
 		end
 		glideTo(waypoint.Position, 24)
@@ -291,11 +217,11 @@ local function bank()
 	for _, v in pairs(ATMMainPageOptions:GetChildren()) do
 		if v:IsA("TextLabel") and v.Text:find("Bank") then
 			local bank = tonumber(v.Text:sub(16))
-			if not bank then error("Couldn't get bank balance " .. v.Text) end
+			if not bank then error("Couldn’t get bank balance: " .. v.Text) end
 			return bank
 		end
 	end
-	error("Couldn't get bank balance")
+	error("Couldn’t get bank balance")
 end
 
 local function resetCharacter()
@@ -308,62 +234,37 @@ local function resetCharacter()
 	rejoin()
 end
 
---- Setup ---
-print("Waiting for loading screen")
+-- Setup & Main Loop
 while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
+if Gui:FindFirstChild("SplashScreenGui") then clickOnUi(Gui.SplashScreenGui.Frame.PlayButton) task.wait(5) end
+if Gui.CharacterCreator.Enabled then clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton) task.wait(5) end
+if Tutorial.Visible then clickOnUi(TutorialCloseButton) end
 
-print("Entering game")
-if Gui:FindFirstChild("SplashScreenGui") then
-	clickOnUi(Gui.SplashScreenGui.Frame.PlayButton)
-	task.wait(5)
-end
-
-print("Skipping character creator")
-if Gui.CharacterCreator.Enabled then
-	clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
-	task.wait(5)
-end
-
-print("Skipping tutorial")
-if Tutorial.Visible then
-	clickOnUi(TutorialCloseButton)
-end
-
-print("Disabling door collision")
 for _, v in pairs(workspace:GetDescendants()) do
 	if v:IsA("Model") and v.Name == "DoorSystem" then
 		for _, p in pairs(v:GetDescendants()) do
-			if p:IsA("BasePart") then
-				p.CanCollide = false
-			end
+			if p:IsA("BasePart") then p.CanCollide = false end
 		end
 	end
 end
 
---- Main Loop ---
 if bank() > getgenv().KeepAmount then
 	notify("Moving to ATM")
 	while task.wait(0.1) do
 		findNewATMs()
 		local workingATMs = filter(ATMs, isAtmWorking)
 		local atm = closest(workingATMs)
-		if not atm or not isAtmWorking(atm) then
-			notify("ATM is nil or not working")
-			continue
-		end
+		if not atm or not isAtmWorking(atm) then notify("ATM nil/not working") continue end
 		if moveTo(atm, true) and isAtmWorking(atm) then
 			notify("Moved to ATM")
 			break
 		end
 	end
 
-	notify("Withdrawing 1")
 	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
-	notify("Withdrawing 2")
 	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
-	notify("Withdrawing 3")
 	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
 end
@@ -372,7 +273,6 @@ notify("Moving to target location")
 moveTo(getgenv().TargetLocation)
 
 while not isCombatLogging() do task.wait() end
-
 if getgenv().ResetCharacter then
 	resetCharacter()
 else
