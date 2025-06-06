@@ -185,7 +185,7 @@ local function glideTo(pos: Vector3, speed: number)
 	for i = 1, steps do
 		local alpha = i / steps
 		local newPos = start:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z))
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- hover height = 6
 		task.wait(0.03)
 	end
 end
