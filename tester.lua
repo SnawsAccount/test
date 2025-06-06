@@ -173,6 +173,7 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
+-- Improved glideTo for slope-aware movement
 local function glideTo(pos: Vector3, speed: number)
 	local root = HRP()
 	local dist = (root.Position - pos).Magnitude
@@ -182,7 +183,8 @@ local function glideTo(pos: Vector3, speed: number)
 	for i = 1, steps do
 		local alpha = i / steps
 		local newPos = root.Position:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z))
+		local targetY = pos.Y + 6
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, targetY, newPos.Z))
 		task.wait(0.03)
 	end
 end
