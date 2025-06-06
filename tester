@@ -145,7 +145,7 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
--- Updated velocity-based glideTo
+-- FINAL FIXED GLIDE FUNCTION
 local function glideTo(targetPos, speed)
 	local root = HRP()
 	local hoverHeight = 6
@@ -154,9 +154,13 @@ local function glideTo(targetPos, speed)
 	while true do
 		local current = root.Position
 		local direction = (targetPos - current)
-		if direction.Magnitude <= stepDistance then break end
+		local distance = direction.Magnitude
 
-		local move = direction.Unit * stepDistance
+		if distance <= 0.5 then
+			break
+		end
+
+		local move = direction.Unit * math.min(stepDistance, distance)
 		local nextPos = current + move
 		root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetPos.Y + hoverHeight, nextPos.Z))
 
