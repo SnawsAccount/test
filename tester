@@ -217,7 +217,7 @@ local function moveTo(target, checkATM)
 	local path = PathfindingService:CreatePath({
 		AgentCanJump = false,
 		AgentCanClimb = true,
-		WaypointSpacing = 2
+		WaypointSpacing = 7
 	})
 
 	local success, err = pcall(function()
@@ -246,7 +246,7 @@ local function moveTo(target, checkATM)
 			notify("ATM stopped working, finding another one")
 			return false
 		end
-		glideTo(waypoint.Position, 24)
+		glideTo(waypoint.Position, 20)
 	end
 	return true
 end
