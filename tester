@@ -20,7 +20,7 @@ if not game:IsLoaded() then
 end
 
 print("Waiting 3 seconds")
-task.wait(3)
+wait(3)
 
 function filter(arr, func)
 	local new_arr = {}
@@ -50,7 +50,7 @@ local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 
 if game.JobId ~= getgenv().JobId then
-	while task.wait(5) do
+	while wait(5) do
 		TeleportService:TeleportToPlaceInstance(game.PlaceId, getgenv().JobId, Player)
 	end
 end
@@ -120,16 +120,16 @@ local function notify(text: string, duration: number?)
 end
 
 local function rejoin()
-	while task.wait(5) do
+	while wait(5) do
 		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
 	end
 end
 
 local function keypress(key: Enum.KeyCode)
 	VIM:SendKeyEvent(true, key, false, game)
-	task.wait()
+	wait()
 	VIM:SendKeyEvent(false, key, false, game)
-	task.wait()
+	wait()
 end
 
 local function clickOnUi(element: TextButton)
@@ -137,7 +137,7 @@ local function clickOnUi(element: TextButton)
 		setthreadidentity(2)
 		firesignal(element.MouseButton1Click)
 	end)
-	task.wait()
+	wait()
 end
 
 local function isCombatLogging()
@@ -287,28 +287,28 @@ end
 
 local function resetCharacter()
 	keypress(Enum.KeyCode.Escape)
-	task.wait(0.1)
+	wait(0.1)
 	keypress(Enum.KeyCode.R)
-	task.wait(0.1)
+	wait(0.1)
 	keypress(Enum.KeyCode.Return)
-	task.wait(1)
+	wait(1)
 	rejoin()
 end
 
 --- Setup ---
 print("Waiting for loading screen")
-while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
+while Gui:FindFirstChild("LoadingScreen", true) do wait() end
 
 print("Entering game")
 if Gui:FindFirstChild("SplashScreenGui") then
 	clickOnUi(Gui.SplashScreenGui.Frame.PlayButton)
-	task.wait(5)
+	wait(5)
 end
 
 print("Skipping character creator")
 if Gui.CharacterCreator.Enabled then
 	clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
-	task.wait(5)
+	wait(5)
 end
 
 print("Skipping tutorial")
@@ -330,7 +330,7 @@ end
 --- Main Loop ---
 if bank() > getgenv().KeepAmount then
 	notify("Moving to ATM")
-	while task.wait(0.1) do
+	while wait(0.1) do
 		findNewATMs()
 		local workingATMs = filter(ATMs, isAtmWorking)
 		local atm = closest(workingATMs)
@@ -346,24 +346,24 @@ if bank() > getgenv().KeepAmount then
 
 	notify("Withdrawing 1")
 	withdraw(bank() - getgenv().KeepAmount)
-	task.wait(0.1)
+	wait(0.1)
 	notify("Withdrawing 2")
 	withdraw(bank() - getgenv().KeepAmount)
-	task.wait(0.1)
+	wait(0.1)
 	notify("Withdrawing 3")
 	withdraw(bank() - getgenv().KeepAmount)
-	task.wait(0.1)
+	wait(0.1)
 end
 
 notify("Moving to target location")
 moveTo(getgenv().TargetLocation)
 
-while not isCombatLogging() do task.wait() end
+while not isCombatLogging() do wait() end
 
 if getgenv().ResetCharacter then
 	resetCharacter()
 else
-	while not Gui.DeathScreen.DeathScreenHolder.Visible do task.wait() end
-	task.wait(1)
+	while not Gui.DeathScreen.DeathScreenHolder.Visible do wait() end
+	wait(1)
 	rejoin()
 end
