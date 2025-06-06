@@ -1,5 +1,3 @@
--- ✅ FULL SCRIPT WITH glideTo LIMITED TO +2 Y MOVEMENT PER STEP
-
 if getgenv().KeepAmount == nil then
 	getgenv().KeepAmount = 99
 end
@@ -176,33 +174,22 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
--- ✅ glideTo with max Y change of +2
+-- Smooth glide movement
 local function glideTo(pos: Vector3, speed: number)
 	local root = HRP()
 	local dist = (root.Position - pos).Magnitude
 	local duration = dist / speed
-	local steps = math.clamp(math.ceil(duration / 0.03), 10, 100)
+	local steps = math.ceil(duration / 0.03)
 
 	for i = 1, steps do
 		local alpha = i / steps
-		local targetPos = root.Position:Lerp(pos, alpha)
-
-		-- Only allow max +1 Y climb per step
-		local currentY = root.Position.Y
-		if targetPos.Y > currentY + 1 then
-			targetPos = Vector3.new(targetPos.X, currentY + 1, targetPos.Z)
-		elseif targetPos.Y < currentY - 5 then
-			targetPos = Vector3.new(targetPos.X, currentY - 5, targetPos.Z)
-		end
-
-		root.CFrame = CFrame.new(Vector3.new(targetPos.X, targetPos.Y + 6, targetPos.Z))
+		local newPos = root.Position:Lerp(pos, alpha)
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- hover height = 6
 		task.wait(0.03)
 	end
 end
 
-
--- ✅ continue full script
-
+-- Pathfinding + Glide
 local function moveTo(target, checkATM)
 	for _, part in pairs(workspace:GetChildren()) do
 		if part:IsA("Part") and part.Name == "Waypoint" then
@@ -230,7 +217,7 @@ local function moveTo(target, checkATM)
 	local path = PathfindingService:CreatePath({
 		AgentCanJump = false,
 		AgentCanClimb = true,
-		WaypointSpacing = 8
+		WaypointSpacing = 10
 	})
 
 	local success, err = pcall(function()
@@ -243,24 +230,23 @@ local function moveTo(target, checkATM)
 		error("Path failed: " .. (err or tostring(path.Status)))
 	end
 
-	local lastPos = HRP().Position
-	HRP().CanCollide = false
-	local head = Character():FindFirstChild("Head")
-	if head then head.CanCollide = false end
+	for _, waypoint in ipairs(path:GetWaypoints()) do
+		local p = Instance.new("Part", workspace)
+		p.Position = waypoint.Position
+		p.Name = "Waypoint"
+		p.Anchored = true
+		p.CanCollide = false
+		p.Color = Color3.new(1, 0, 0)
+		p.Size = Vector3.new(0.2, 0.2, 0.2)
+	end
 
 	for _, waypoint in ipairs(path:GetWaypoints()) do
-		if (HRP().Position - waypoint.Position).Magnitude <= 4 then continue end
+		if (position - HRP().Position).Magnitude <= 6 then break end
 		if checkATM and targetModel and not isAtmWorking(targetModel) then
 			notify("ATM stopped working, finding another one")
 			return false
 		end
 		glideTo(waypoint.Position, 20)
-		if (HRP().Position - lastPos).Magnitude < 1 then
-			notify("Detected stuck movement, rejoining...")
-			rejoin()
-			return false
-		end
-		lastPos = HRP().Position
 	end
 	return true
 end
@@ -286,20 +272,28 @@ local function resetCharacter()
 	rejoin()
 end
 
--- Setup
+--- Setup ---
+print("Waiting for loading screen")
 while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
+
+print("Entering game")
 if Gui:FindFirstChild("SplashScreenGui") then
 	clickOnUi(Gui.SplashScreenGui.Frame.PlayButton)
 	task.wait(5)
 end
-if Gui.CharacterCreator and Gui.CharacterCreator.Enabled then
+
+print("Skipping character creator")
+if Gui.CharacterCreator.Enabled then
 	clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
 	task.wait(5)
 end
+
+print("Skipping tutorial")
 if Tutorial.Visible then
 	clickOnUi(TutorialCloseButton)
 end
 
+print("Disabling door collision")
 for _, v in pairs(workspace:GetDescendants()) do
 	if v:IsA("Model") and v.Name == "DoorSystem" then
 		for _, p in pairs(v:GetDescendants()) do
@@ -310,7 +304,7 @@ for _, v in pairs(workspace:GetDescendants()) do
 	end
 end
 
--- Main loop
+--- Main Loop ---
 if bank() > getgenv().KeepAmount then
 	notify("Moving to ATM")
 	while task.wait(0.1) do
@@ -327,11 +321,13 @@ if bank() > getgenv().KeepAmount then
 		end
 	end
 
-	notify("Withdrawing")
+	notify("Withdrawing 1")
 	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
+	notify("Withdrawing 2")
 	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
+	notify("Withdrawing 3")
 	withdraw(bank() - getgenv().KeepAmount)
 	task.wait(0.1)
 end
@@ -348,4 +344,3 @@ else
 	task.wait(1)
 	rejoin()
 end
--- Add additional logic or commands as needed.
