@@ -214,7 +214,7 @@ local function moveTo(target, checkATM)
 	end
 
 	local path = PathfindingService:CreatePath({
-		AgentCanJump = false,
+		AgentCanJump = true,
 		AgentCanClimb = true,
 		WaypointSpacing = 8
 	})
