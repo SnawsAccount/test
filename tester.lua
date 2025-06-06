@@ -1,11 +1,12 @@
 if getgenv().KeepAmount == nil then
-	getgenv().KeepAmount = 1000
+	getgenv().KeepAmount = 99
 end
 if getgenv().ResetCharacter == nil then
 	getgenv().ResetCharacter = true
 end
-getgenv().TargetLocation1 = Vector3.new(-628.5126342773438, 276.837890625, -1479.9002685546875)
-getgenv().TargetLocation2 = Vector3.new(-450.40960693359375, 310.3192138671875, -1456.2130126953125)
+if getgenv().TargetLocation == nil then
+	getgenv().TargetLocation = Vector3.new(-572.6912841796875, 279.4130554199219, -1449.682373046875)
+end
 if getgenv().JobId == nil then
 	getgenv().JobId = game.JobId
 end
@@ -173,37 +174,23 @@ local function withdraw(amount)
 	clickOnUi(ATMConfirmButton)
 end
 
+-- Smooth glide movement
 local function glideTo(pos, speed)
 	local root = HRP()
 	local dist = (root.Position - pos).Magnitude
 	local duration = dist / speed
-	local steps = math.max(1, math.ceil(duration / 0.03))
+	local steps = math.ceil(duration / 0.03)
 
 	for i = 1, steps do
 		local alpha = i / steps
 		local newPos = root.Position:Lerp(pos, alpha)
-
-		-- Reliable raycast below the intended position
-		local rayOrigin = newPos + Vector3.new(0, 30, 0)
-		local rayDirection = Vector3.new(0, -100, 0)
-
-		local rayParams = RaycastParams.new()
-		rayParams.FilterDescendantsInstances = {workspace}
-		rayParams.FilterType = Enum.RaycastFilterType.Whitelist
-		rayParams.IgnoreWater = true
-
-		local result = workspace:Raycast(rayOrigin, rayDirection, rayParams)
-
-		local groundY = result and result.Position.Y or newPos.Y
-		local hoverY = groundY + 6
-
-		root.CFrame = CFrame.new(newPos.X, hoverY, newPos.Z)
-
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- fixed +6 hover
 		task.wait(0.03)
 	end
 end
+end
 
-
+-- Pathfinding + Glide
 local function moveTo(target, checkATM)
 	for _, part in pairs(workspace:GetChildren()) do
 		if part:IsA("Part") and part.Name == "Waypoint" then
@@ -229,10 +216,12 @@ local function moveTo(target, checkATM)
 	end
 
 	local path = PathfindingService:CreatePath({
-		AgentCanJump = false,
-		AgentCanClimb = true,
-		WaypointSpacing = 8
-	})
+    AgentRadius = 2,
+    AgentHeight = 5,
+    AgentCanJump = true,
+    AgentCanClimb = true,
+    WaypointSpacing = 2,
+})
 
 	local success, err = pcall(function()
 		path:ComputeAsync(HRP().Position, position)
@@ -286,6 +275,7 @@ local function resetCharacter()
 	rejoin()
 end
 
+--- Setup ---
 print("Waiting for loading screen")
 while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
 
@@ -345,11 +335,8 @@ if bank() > getgenv().KeepAmount then
 	task.wait(0.1)
 end
 
-notify("Moving to target location 1")
-moveTo(getgenv().TargetLocation1)
-
-notify("Now moving to target location 2")
-moveTo(getgenv().TargetLocation2)
+notify("Moving to target location")
+moveTo(getgenv().TargetLocation)
 
 while not isCombatLogging() do task.wait() end
 
