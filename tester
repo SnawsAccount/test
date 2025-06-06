@@ -254,7 +254,7 @@ local function moveTo(target, checkATM)
 			notify("ATM stopped working, finding another one")
 			return false
 		end
-		glideTo(waypoint.Position, 20)
+		glideTo(waypoint.Position, 22)
 	end
 	return true
 end
