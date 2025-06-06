@@ -180,15 +180,30 @@ local function withdraw(amount)
 end
 
 -- FRAME-SYNCED GLIDE MOVEMENT
-local function glideTo(pos: Vector3, speed: number)
-	local root = HRP()
-	local start = root.Position
-	local distance = (pos - start).Magnitude
-	local duration = distance / speed
-	local elapsed = 0
+local RunService = game:GetService("RunService")
 
-	while elapsed < duration do
-		local dt = RunService.RenderStepped:Wait()
+local function glideTo(targetPos: Vector3, speed: number)
+	local root = HRP()
+	local hoverHeight = 6
+	local stepDistance = speed / 60 -- move per frame assuming 60 FPS
+
+	while true do
+		local current = root.Position
+		local direction = (targetPos - current)
+		if direction.Magnitude <= stepDistance then
+			break
+		end
+
+		local move = direction.Unit * stepDistance
+		local nextPos = current + move
+		root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetPos.Y + hoverHeight, nextPos.Z))
+
+		RunService.RenderStepped:Wait()
+	end
+
+	-- Snap to final target
+	root.CFrame = CFrame.new(Vector3.new(targetPos.X, targetPos.Y + hoverHeight, targetPos.Z))
+enderStepped:Wait()
 		elapsed += dt
 
 		local alpha = math.clamp(elapsed / duration, 0, 1)
@@ -254,7 +269,7 @@ local function moveTo(target, checkATM)
 			notify("ATM stopped working, finding another one")
 			return false
 		end
-		glideTo(waypoint.Position, 30)
+		glideTo(waypoint.Position, 24)
 	end
 	return true
 end
