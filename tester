@@ -193,7 +193,7 @@ local function glideTo(pos: Vector3, speed: number)
 
 		local alpha = math.clamp(elapsed / duration, 0, 1)
 		local newPos = start:Lerp(pos, alpha)
-		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 6, newPos.Z)) -- maintain hover height
+		root.CFrame = CFrame.new(Vector3.new(newPos.X, pos.Y + 3, newPos.Z)) -- maintain hover height
 	end
 end
 
