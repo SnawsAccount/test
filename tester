@@ -20,9 +20,9 @@ if not game:IsLoaded() then
 end
 
 print("Waiting 3 seconds")
-wait(3)
+task.wait(3)
 
-function filter(arr, func)
+function filter<T>(arr: { T }, func: (T) -> boolean): { T }
 	local new_arr = {}
 	for _, v in pairs(arr) do
 		if func(v) then
@@ -32,7 +32,7 @@ function filter(arr, func)
 	return new_arr
 end
 
-function map(arr, func)
+function map<T, U>(arr: { T }, func: (T) -> U): { U }
 	local new_arr = {}
 	for i, v in pairs(arr) do
 		new_arr[i] = func(v)
@@ -50,7 +50,7 @@ local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 
 if game.JobId ~= getgenv().JobId then
-	while wait(5) do
+	while task.wait(5) do
 		TeleportService:TeleportToPlaceInstance(game.PlaceId, getgenv().JobId, Player)
 	end
 end
@@ -120,16 +120,16 @@ local function notify(text: string, duration: number?)
 end
 
 local function rejoin()
-	while wait(5) do
+	while task.wait(5) do
 		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
 	end
 end
 
 local function keypress(key: Enum.KeyCode)
 	VIM:SendKeyEvent(true, key, false, game)
-	wait()
+	task.wait()
 	VIM:SendKeyEvent(false, key, false, game)
-	wait()
+	task.wait()
 end
 
 local function clickOnUi(element: TextButton)
@@ -137,7 +137,7 @@ local function clickOnUi(element: TextButton)
 		setthreadidentity(2)
 		firesignal(element.MouseButton1Click)
 	end)
-	wait()
+	task.wait()
 end
 
 local function isCombatLogging()
@@ -182,10 +182,12 @@ end
 -- FRAME-SYNCED GLIDE MOVEMENT
 local RunService = game:GetService("RunService")
 
+local RunService = game:GetService("RunService")
+
 local function glideTo(targetPos: Vector3, speed: number)
 	local root = HRP()
 	local hoverHeight = 6
-	local stepDistance = speed / 60 -- move per frame assuming 60 FPS
+	local stepDistance = speed / 60 -- assume 60 FPS as base
 
 	while true do
 		local current = root.Position
@@ -193,6 +195,17 @@ local function glideTo(targetPos: Vector3, speed: number)
 		if direction.Magnitude <= stepDistance then
 			break
 		end
+
+		local move = direction.Unit * stepDistance
+		local nextPos = current + move
+		root.CFrame = CFrame.new(Vector3.new(nextPos.X, targetPos.Y + hoverHeight, nextPos.Z))
+
+		RunService.RenderStepped:Wait()
+	end
+
+	-- Snap to final target
+	root.CFrame = CFrame.new(Vector3.new(targetPos.X, targetPos.Y + hoverHeight, targetPos.Z))
+end
 
 		local move = direction.Unit * stepDistance
 		local nextPos = current + move
@@ -287,28 +300,28 @@ end
 
 local function resetCharacter()
 	keypress(Enum.KeyCode.Escape)
-	wait(0.1)
+	task.wait(0.1)
 	keypress(Enum.KeyCode.R)
-	wait(0.1)
+	task.wait(0.1)
 	keypress(Enum.KeyCode.Return)
-	wait(1)
+	task.wait(1)
 	rejoin()
 end
 
 --- Setup ---
 print("Waiting for loading screen")
-while Gui:FindFirstChild("LoadingScreen", true) do wait() end
+while Gui:FindFirstChild("LoadingScreen", true) do task.wait() end
 
 print("Entering game")
 if Gui:FindFirstChild("SplashScreenGui") then
 	clickOnUi(Gui.SplashScreenGui.Frame.PlayButton)
-	wait(5)
+	task.wait(5)
 end
 
 print("Skipping character creator")
 if Gui.CharacterCreator.Enabled then
 	clickOnUi(Gui.CharacterCreator.MenuFrame.AvatarMenuSkipButton)
-	wait(5)
+	task.wait(5)
 end
 
 print("Skipping tutorial")
@@ -330,7 +343,7 @@ end
 --- Main Loop ---
 if bank() > getgenv().KeepAmount then
 	notify("Moving to ATM")
-	while wait(0.1) do
+	while task.wait(0.1) do
 		findNewATMs()
 		local workingATMs = filter(ATMs, isAtmWorking)
 		local atm = closest(workingATMs)
@@ -346,24 +359,24 @@ if bank() > getgenv().KeepAmount then
 
 	notify("Withdrawing 1")
 	withdraw(bank() - getgenv().KeepAmount)
-	wait(0.1)
+	task.wait(0.1)
 	notify("Withdrawing 2")
 	withdraw(bank() - getgenv().KeepAmount)
-	wait(0.1)
+	task.wait(0.1)
 	notify("Withdrawing 3")
 	withdraw(bank() - getgenv().KeepAmount)
-	wait(0.1)
+	task.wait(0.1)
 end
 
 notify("Moving to target location")
 moveTo(getgenv().TargetLocation)
 
-while not isCombatLogging() do wait() end
+while not isCombatLogging() do task.wait() end
 
 if getgenv().ResetCharacter then
 	resetCharacter()
 else
-	while not Gui.DeathScreen.DeathScreenHolder.Visible do wait() end
-	wait(1)
+	while not Gui.DeathScreen.DeathScreenHolder.Visible do task.wait() end
+	task.wait(1)
 	rejoin()
 end
