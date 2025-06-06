@@ -185,20 +185,21 @@ local function glideTo(pos: Vector3, speed: number)
 
 	for i = 1, steps do
 		local alpha = i / steps
-		local currentPos = root.Position
-		local targetPos = currentPos:Lerp(pos, alpha)
+		local targetPos = root.Position:Lerp(pos, alpha)
 
-		local deltaY = targetPos.Y - currentPos.Y
-		if deltaY > 2 then
-			targetPos = Vector3.new(targetPos.X, currentPos.Y + 2, targetPos.Z)
-		elseif deltaY < -5 then
-			targetPos = Vector3.new(targetPos.X, currentPos.Y - 5, targetPos.Z)
+		-- Only allow max +1 Y climb per step
+		local currentY = root.Position.Y
+		if targetPos.Y > currentY + 1 then
+			targetPos = Vector3.new(targetPos.X, currentY + 1, targetPos.Z)
+		elseif targetPos.Y < currentY - 5 then
+			targetPos = Vector3.new(targetPos.X, currentY - 5, targetPos.Z)
 		end
 
 		root.CFrame = CFrame.new(Vector3.new(targetPos.X, targetPos.Y + 6, targetPos.Z))
 		task.wait(0.03)
 	end
 end
+
 
 -- ✅ continue full script
 
